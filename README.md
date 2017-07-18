@@ -11,10 +11,10 @@ The following script files may be found in the main directory.
 
 ---
 `mapping_GI_variables.R`
-To map the urban green infratructures and relevant variables in the New York City
+is to map the urban green infratructures and relevant variables in the New York City
 
 ---
-`visualize_climate.R`
-To understand the storm events and precipitation in the New York City
+`visualize_climate_water.R`
+is to visualize the storm events, precipitation, water quality and combined sewer overflow in the New York City
 
 
