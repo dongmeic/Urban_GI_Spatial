@@ -7,7 +7,7 @@ The purpose of this repository is for the collaboration among the spatial team m
 The raw spatial data can be found in the [SESYNC UrbanGI share folder](https://files.sesync.org/pydio/ws-urbangi/spatial_data). 
 
 ## Scripts
-The following script files may be found in the `data/` directory.
+The following script files may be found in the `files/` directory.
 
 ---
 `mapping_v01.R`
