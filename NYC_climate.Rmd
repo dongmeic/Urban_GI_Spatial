@@ -1,0 +1,432 @@
+---
+title: "A socio-ecological study of green infrastructure in the New York City"
+author: Dongmei Chen
+output: html_document
+---
+
+## Introduction
+Green infrastructure (GI) is a sustainable stormwater management technique which also provides ecosystem services such as carbon sequestration, improve air and water quality, insulation and noise reduction, aesthetic and social value, and biodiversity (Coutts and Hahn, 2015; Getter and Rowe, 2006), to benefit human well-being and enhance ecosystem resilience. The literature largely promotes GI as a multifunctional and cost-effective technique for climate change adaptation (CCA) (Demuzere et al., 2014; Foster et al., 2011; Gill et al., 2007), but some researchers have also pointed out the challenges in the process of GI implementation, such as the confusion and limits on understanding how it functions for CCA (Matthews et al., 2015; Sussams et al., 2015), the administrative, economic and technical barriers (Keeley et al., 2013), and the net effectiveness of GI (Pataki et al., 2011). The provision and regulation of ecosystem services and its connections with human health through GI planning has become the focus of adopting GI for CCA, however, the primary role of GI as a design for sustainable water management has been largely ignored in the discussion of adapting to climate change. Meanwhile, scholars provide a socio-ecological system (SES) framework (Flynn and Davidson, 2016) for sustainable water governance or adaptive water management in facing climatic uncertainties and global change (Pahl-Wostl, 2007; Pahl-Wostl et al., 2010; Wiek and Larson, 2012), and GI is considered as an innovative technology plays a significant role in interfacing social-ecological interactions in the complex stormwater SES (Flynn and Davidson, 2016). Hence, GI has also ecologically and socially impacted urban water resource through the process and outcome of the stormwater management, however, there is still limit understanding on the socio-ecological impact of GI on water resources. This study will investigate the background, process, outcome and approach of adopting GI in water resource management and provide a more balanced view of GI for adapting climate change under a socio-ecological synthesis framework, which involve both human (social) and natural (environmental) systems. 
+
+The role of green infrastructure as a sustainable drainage system to manage water resources and adapt to climate change has been discussed under a socio-ecological synthesis framework. Green infrastructure is designed for stormwater management in urban planning while indirectly providing ecosystem services for public goods due to its biophysical properties in the soil-plant-atmospheric system. However, the broad application of GI in different regions and fields has resulted in multiple definitions and terms for GI, which leads to confusion and misconception about GI. As such, the primary function of GI in managing water resources is largely overlooked in literature that focuses on GI’s secondary ecosystem services for climate change adaptation. In response, we examined GI in both social and ecological terms, and evaluated the social and ecological impacts of GI on water resources. We found that GI is ecologically effective and necessary for sustainable water management and climate change adaptation despite some negative effects on air and water quality that can be managed with the development of techniques and policy. There are certain institutional, economic and technical challenges and low public awareness on GI as sustainable water management tool during the process of GI implementation. As such, we consider opportunities that can be created through adaptive governance, interdisciplinary research and technological development with an understanding that uncertainties and scale-dependent are inherent in the complex SES of GI for climate change adaptation. More socio-ecological synthesis research is needed for better understanding of GI feedback, particularly on its long-term impacts in relation to climate change adaptation and urbanization.
+
+```{r setup, include=FALSE}
+options(warn=-1)
+setwd("/nfs/urbangi-data/spatial_data/output")
+knitr::opts_chunk$set(echo = FALSE, cache = FALSE, eval = TRUE, message=FALSE)
+infolder <- "/nfs/urbangi-data/spatial_data/"
+# libraries
+library(rgdal)
+library(ggplot2)
+library(tidyr)
+library(plotly)
+library(dplyr)
+library(maptools)
+library(GISTools)
+library(raster)
+library(plotrix)
+library(rasterVis)
+library(lattice)
+library(classInt)
+
+# extent is set as the boundary
+utm <- CRS("+proj=utm +zone=18 +ellps=GRS80 +datum=NAD83 +units=m +no_defs")
+rproj <- CRS("+proj=utm +zone=18 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")
+e <- extent( c(913175.1, 1067383, 120121.9, 272844.3) )
+p <- as(e, 'SpatialPolygons')
+crs(p) <- utm
+shapefile(p, 'file.shp', overwrite=TRUE)
+bound <- readOGR(dsn = paste0(infolder, "BD"), layer = "nyad_dis", verbose = FALSE)
+lonlat <- CRS("+proj=longlat +datum=NAD83")
+crs <- CRS("+proj=lcc +lat_1=40.66666666666666 +lat_2=41.03333333333333
+           +lat_0=40.16666666666666 +lon_0=-74 +x_0=300000 +y_0=0 +datum=NAD83
+           +units=us-ft +no_defs +ellps=GRS80 +towgs84=0,0,0")
+proj4string(bound) <- crs
+# functions
+# to draw northarrow
+northarrow <- function(loc,size,bearing=0,cols,cex=1,...) {
+  # checking arguments
+  if(missing(loc)) stop("loc is missing")
+  if(missing(size)) stop("size is missing")
+  # default colors are white and black
+  if(missing(cols)) cols <- rep(c("white","black"),8)
+  # calculating coordinates of polygons
+  radii <- rep(size/c(1,4,2,4),4)
+  x <- radii[(0:15)+1]*cos((0:15)*pi/8+bearing)+loc[1]
+  y <- radii[(0:15)+1]*sin((0:15)*pi/8+bearing)+loc[2]
+  # drawing polygons
+  for (i in 1:15) {
+    x1 <- c(x[i],x[i+1],loc[1])
+    y1 <- c(y[i],y[i+1],loc[2])
+    polygon(x1,y1,col=cols[i])
+  }
+  # drawing the last polygon
+  polygon(c(x[16],x[1],loc[1]),c(y[16],y[1],loc[2]),col=cols[16])
+  # drawing letters
+  b <- c("E","N","W","S")
+  for (i in 0:3) text((size+par("cxy")[1])*cos(bearing+i*pi/2)+loc[1],
+                      (size+par("cxy")[2])*sin(bearing+i*pi/2)+loc[2],b[i+1],
+                      cex=cex)
+}
+
+add.northarrow <- function(){
+  northarrow(c(980000,260000),7000)
+}
+
+add.scale <- function(){
+  GISTools::map.scale(1040000,140000,19685.083,"km",3,2,sfcol='brown')
+} #19685 feet 0.5 inches equals to 6 km
+
+# require census tract boundary, green infrastructure points, and NYC boundary
+quick.map <- function(spdf,var,legend.title,main.title,color,style) {
+  x <- as.numeric(spdf@data[,var])
+  if (style == "jenks"){
+    plotvar <- x
+    nclr <- 8
+    plotclr <- brewer.pal(nclr,color)
+    class <- classIntervals(plotvar, nclr, style="jenks", dataPrecision=1)
+    colcode <- findColours(class, plotclr)
+    par(xpd=TRUE,mfrow=c(1,1),mar=c(0.5,0.5,2.5,0.5))
+    if (var == "Impervious" | var == "stormwat_1"){
+      plot(bound)
+      plot(spdf, col=colcode, add=T)
+      plot(greinfr, col="#4daf4a", add=T, pch=16, cex=0.5)
+    }else if (class(spdf)[1] == "SpatialPolygonsDataFrame"){
+      plot(spdf, col=colcode)
+    }else if (class(spdf)[1] == "SpatialPointsDataFrame"){
+      plotclr <- plotclr[nclr:1]
+      class <- classIntervals(plotvar, nclr, style="jenks", dataPrecision=1)
+      colcode <- findColours(class, plotclr)
+      plot(tract,border='darkgrey')
+      plot(spdf, add=TRUE,col=colcode,pch=16, cex=1.5)
+      #points(spdf@coords[,1], spdf@coords[,2], cex=1.5)
+    }else{
+      cat("The spatial dataframe is not supported.")
+    }
+    title(main.title,cex.main=1.5)
+    legend(915000,258000,legend=names(attr(colcode, "table")),
+           fill=attr(colcode, "palette"), title=legend.title, bty="n")
+    add.northarrow()
+    add.scale()
+  } else if (style == "quantileCuts") {
+    shades <- auto.shading(na.omit(x), cutter = quantileCuts, n=8, cols=brewer.pal(8, color))
+    par(xpd=TRUE,mfrow=c(1,1),mar=c(0.5,0.5,2.5,0.5))
+    choropleth(spdf,x,shades)
+    title(main.title,cex.main=1.5)
+    choro.legend(915000,258000, shades, bty='n', title=legend.title)
+    add.northarrow()
+    add.scale()
+  }else{
+    cat("The style is either \"quantileCuts\" (only for spatial polygon) or \"jenks\". Please try again.")
+  }
+}
+
+# convert dataframe to spatial dataframe
+df2spdf <- function(col1, col2, colname1, colname2, df){
+  xy <- data.frame(df[,c(col1,col2)])
+  coordinates(xy) <- c(colname1, colname2)
+  proj4string(xy) <- lonlat
+  xy.n <- spTransform(xy, crs)
+  spdf <- SpatialPointsDataFrame(coords = xy.n, data = df, proj4string = crs)
+  return(spdf)
+}
+# get year, month, yday, hour information from date
+get.int <- function(x,y){
+  dt <- as.POSIXlt(x)
+  unlist(unclass(dt))
+  if (y=="y"){
+    return(dt$year+1900)
+  }else if(y=="m"){
+    return(dt$mon+1)
+  }else if(y=="d"){
+    return(dt$yday+1)
+  }else if(y=="h"){
+    if (dt$min >= 30){
+      return(dt$hour+1)
+    }else{
+      return(dt$hour)
+    }
+  }else{
+    cat("oops, you need to select one of \"y\", \"m\", \"d\", and \"h\" with quotes!")
+  }
+}
+```
+
+## Data exploratory analysis and mapping
+### Climate and weather
+
+```{r storm_events}
+storms <- read.csv(paste0(infolder, "output/stormdata_nyc.csv"), stringsAsFactors = FALSE)
+storms$MONTH <- as.numeric(t(sapply(storms$BEGIN_YEARMONTH, function(x) substring(x, first=c(1,5), last=c(4,6))))[,2])
+
+yr.stms <- aggregate(EVENT_TYPE~YEAR, data = storms, function(x) length(x))
+barplot(yr.stms$EVENT_TYPE, names.arg = yr.stms$YEAR)
+title("Number of storm events over years")
+
+# seasonal variation in storm events
+ss.stms <- aggregate(EVENT_TYPE~MONTH, data = storms, function(x) length(x))
+plot(ss.stms$MONTH, ss.stms$EVENT_TYPE, xlab="Month", ylab="No. storms", type="l", lwd=1.5)
+points(ss.stms$MONTH, ss.stms$EVENT_TYPE, col="red", pch=16, cex=1.5)
+title("Seasonal variation in storm events")
+
+stms.spdf <- df2spdf(47,46,"BEGIN_LON","BEGIN_LAT",storms)
+par(xpd=TRUE,mfrow=c(1,1),mar=c(0.5,0.5,2.5,0.5))
+plot(bound, bord="dark gray")
+plot(stms.spdf, pch=19, col="blue", cex=0.8, add=T)
+title("Locations of storm events")
+
+```
+
+![Look at the locations and types of storm events](/nfs/urbangi-data/spatial_data/output/storms_events_nyc.gif)
+
+```{r tem_pre}
+clm.df <- read.csv("https://www.ncei.noaa.gov/orders/cdo/1025271.csv", stringsAsFactors = FALSE)
+clm.df$YEAR <- unlist(lapply(clm.df$DATE, function(x) get.int(x,'y')))
+clm.df$MONTH <- unlist(lapply(clm.df$DATE, function(x) get.int(x,'m')))
+clm.df$YDAY <- unlist(lapply(clm.df$DATE, function(x) get.int(x,'d')))
+clm.df$HOUR <- unlist(lapply(clm.df$DATE, function(x) get.int(x,'h')))
+tmp1 <- aggregate(DAILYAverageDryBulbTemp~YDAY, data=clm.df, mean)
+tmp2 <- aggregate(DAILYAverageWetBulbTemp~YDAY, data=clm.df, mean)
+tmp.d <- merge(tmp1, tmp2, by="YDAY")
+tmp3 <- aggregate(MonthlyMaximumTemp~MONTH, data=clm.df, mean)
+tmp4 <- aggregate(MonthlyMinimumTemp~MONTH, data=clm.df, mean)
+tmp5 <- aggregate(MonthlyMeanTemp~MONTH, data=clm.df, mean)
+tmp.m <- merge(tmp3, tmp4, by="MONTH")
+tmp.m <- merge(tmp.m,tmp5, by="MONTH")
+
+#png("/nfs/urbangi-data/spatial_data/output/monthly_temp_bar.png", width=6, height=8, units="in", res=300)
+mybar <- barplot(tmp.m$MonthlyMeanTemp, names.arg = tmp.m$MONTH,main="Monthly average temperature (°F)",xlim=c(0, 100))
+points(mybar, tmp.m$MonthlyMaximumTemp, pch=19, col="red")
+points(mybar, tmp.m$MonthlyMinimumTemp, pch=19, col="blue")
+legend("topleft",c("Max","Min"),pch=c(19,19),col =c("red","blue"))
+#dev.off()
+
+plot(tmp.d$YDAY, tmp.d$DAILYAverageDryBulbTemp,type='l', xlab="Day of year", ylab="Temperature", col="red")
+lines(tmp.d$YDAY, tmp.d$DAILYAverageWetBulbTemp, col="blue")
+title("Daily average dry/wet bulb temperature (°F)")
+legend(300,80, c("Dry","Wet"),lty=c(1,1), col=c("red","blue"))
+
+clm.df$HOURLYDRYBULBTEMPC <- as.numeric(clm.df$HOURLYDRYBULBTEMPC)
+clm.df$HOURLYWETBULBTEMPC <- as.numeric(clm.df$HOURLYWETBULBTEMPC)
+clm.df$HOURLYPrecip <- as.numeric(clm.df$HOURLYPrecip)
+library(dplyr)
+tmp.m.h <- data.frame(h=numeric(),t1=numeric(),t2=numeric(),m=character())
+pre.m.h <- data.frame(h=numeric(),p=numeric(),m=character())
+for (i in 1:12){
+  tmp6 <- aggregate(HOURLYDRYBULBTEMPC~HOUR, data=filter(clm.df,MONTH==i), mean, na.action = na.omit)
+  tmp7 <- aggregate(HOURLYWETBULBTEMPC~HOUR, data=filter(clm.df,MONTH==i), mean)
+  pre.h <- aggregate(HOURLYPrecip~HOUR, data=filter(clm.df,MONTH==i), mean, na.action = na.omit)
+  tmp.h <- merge(tmp6, tmp7, by="HOUR")
+  tmp.h$Month <- rep(sprintf("%02d", i),length(tmp.h$HOUR))
+  pre.h$Month <- rep(sprintf("%02d", i),length(tmp.h$HOUR))
+  tmp.m.h <- rbind(tmp.m.h,tmp.h)
+  pre.m.h <- rbind(pre.m.h,pre.h)
+}
+tmp.m.h.n <- gather(tmp.m.h, Key, Value, -Month, -HOUR)
+names(tmp.m.h.n)[1] <- "Hour"
+tmp.m.h.n$Value <- round(tmp.m.h.n$Value,1)
+tmp.m.h.n$Key <- factor(tmp.m.h.n$Key, labels = c("Hourly dry bulb temperature (°C)","Hourly wet bulb temperature (°C)"))
+tmp.p <- ggplot(data = tmp.m.h.n,
+       aes(x = Hour, y = Value, color = Month)) +
+  facet_wrap(~Key, dir = "v")+
+  geom_line(stat = 'summary',
+            fun.y = 'mean')+
+  geom_point()+
+  xlab("Hour of day")+
+  ylab("Temperature (°C)")
+ggplotly(tmp.p)
+
+# monthly precipitation
+clm.df$DAILYPrecip <- as.numeric(clm.df$DAILYPrecip)
+pre.m.d <- aggregate(DAILYPrecip~MONTH, data=clm.df, sum, na.action = na.omit)
+pre.y.m.d <- data.frame(m=numeric(),p=numeric(),y=character())
+for (y in 2013:2017){
+  pre.y <- aggregate(DAILYPrecip~MONTH, data=filter(clm.df,YEAR==y), sum, na.action = na.omit)
+  pre.y$Year <- rep(toString(y),length(pre.y$MONTH))
+  pre.y.m.d <- rbind(pre.y.m.d,pre.y)
+}
+pre.y.m.d$MONTH <- as.factor(pre.y.m.d$MONTH)
+clm.df$Year <- as.factor(clm.df$YEAR)
+clm.df$Yday <- as.factor(clm.df$YDAY)
+pre.df <- clm.df[!is.na(clm.df$DAILYPrecip),]
+p <- ggplot(pre.y.m.d, aes(MONTH, DAILYPrecip,fill=Year))
+p+geom_bar(position = "fill", stat = "identity")+
+  xlab("Month")+ylab("Daily precipitation")
+
+# daily precipitation
+p <- ggplot(pre.df, aes(YDAY,DAILYPrecip, color=Year)) +geom_point()+ylim(0,2)+xlab("Day of year")+ylab("Daily precipitation")
+p
+ggplotly(p + facet_wrap(~MONTH))
+
+names(pre.m.h)[1:2] <- c("Hour", "Precipitation")
+pre.m.h$Precipitation <- round(pre.m.h$Precipitation * 1000, 1)
+pre.m.h.n <- filter(pre.m.h, Hour > 0)
+ggplot(data = pre.m.h,
+                aes(x = Hour, y = Precipitation, color = Month)) +
+  geom_line(stat = 'summary',
+            fun.y = 'mean')+
+  geom_point()+
+  xlab("Hour of day")+
+  ylab(expression('Hourly precipitation ('~{10}^{-3}~'mm)'))+
+  geom_vline(xintercept = 6, color = "black", linetype=4)+
+  geom_vline(xintercept = 20, color = "black", linetype=4)
+
+pre.p <- ggplot(data = pre.m.h.n,
+                 aes(x = Hour, y = Precipitation, color = Month)) +
+  geom_line(stat = 'summary',
+            fun.y = 'mean')+
+  geom_point()+
+  xlab("Hour of day")+
+  ylab('Hourly precipitation (µm)')
+ggplotly(pre.p)
+```
+
+### Topography
+
+```{r mapping}
+# input CSV files
+wqsploc.file <- paste0(infolder,"WQ/harbor_sampling_coordinates.csv")
+physhs.file <- paste0(infolder,"SE/ACS_13_5YR_S2504_with_ann.csv")
+race.file <- paste0(infolder,"SE/ACS_14_5YR_B02001_with_ann.csv")
+income.file <- paste0(infolder,"SE/ACS_14_5YR_B19013_with_ann.csv")
+agesex.file <- paste0(infolder,"SE/ACS_14_5YR_S0101_with_ann.csv")
+eduatt.file <- paste0(infolder,"SE/ACS_14_5YR_S1501_with_ann.csv")
+dischar.file <- paste0(infolder,"SE/ACS_14_5YR_S1810_with_ann.csv")
+
+# read shapefiles
+bound <- readOGR(dsn=paste0(infolder, "BD"), layer ="nyad_dis", stringsAsFactors=FALSE, verbose = FALSE)
+proj4string(bound) <- crs
+tract <- readOGR(dsn=paste0(infolder, "BD"), layer ="cb_2015_36_tract_500k_clip_proj", stringsAsFactors=FALSE, verbose = FALSE)
+proj4string(tract) <- crs
+bg <- readOGR(dsn=paste0(infolder, "BD"), layer ="cb_2015_36_bg_500k_clip_proj", stringsAsFactors=FALSE, verbose = FALSE)
+proj4string(bg) <- crs
+csoloc <- readOGR(dsn=paste0(infolder, "CSO"), layer ="CSO_locations_clip_proj", stringsAsFactors=FALSE, verbose = FALSE) 
+proj4string(csoloc) <- crs
+csodra <- readOGR(dsn=paste0(infolder, "CSO"), layer ="combinedsewer_drainage_area_proj", stringsAsFactors=FALSE, verbose = FALSE)
+proj4string(csodra) <- crs
+sewershed <- readOGR(dsn=paste0(infolder, "CSO"), layer ="Sewershed", stringsAsFactors=FALSE, verbose = FALSE)
+proj4string(sewershed) <- crs
+greinfr <- readOGR(dsn=paste0(infolder, "GI"), layer ="DEP_GREEN_INFRASTRUCTURE", stringsAsFactors=FALSE, verbose = FALSE)
+greinfr <- spTransform(greinfr,crs)
+
+dem <- raster(paste0(infolder,"DEM/dem_mosaic.tif"))
+mapTheme <- rasterTheme(region = rev(brewer.pal(7, "BrBG")))
+bound_proj <- spTransform(bound, rproj)
+cutpts <- c(5, 15, 30, 45, 50, 80, 110, 130)
+levelplot(dem, margin = FALSE, at=cutpts, cuts=8, pretty=TRUE, par.settings = mapTheme)+layer(sp.polygons(bound_proj, lwd=0.8, col='gray'))
+
+# read socioeconomic data
+physhs <- read.csv(physhs.file, stringsAsFactors = FALSE)
+physhs.df <- physhs[,c("GEO.id2","HC01_EST_VC01","HC01_EST_VC17")]
+colnames(physhs.df) <- c("GEOID","total","old")
+physhs.df$pctold <- suppressWarnings(with(physhs.df, ifelse(is.na(total) | is.na(old), NA, round((as.numeric(old)/as.numeric(total)*100), digit=1))))
+physhs.df$pctold <- with(physhs.df, ifelse(pctold > 100, NA, pctold))
+physhs.spdf <- merge(tract, physhs.df, by="GEOID", all.x =FALSE)
+
+race <- read.csv(race.file, stringsAsFactors = FALSE)
+race.df <- race[,c("GEO.id2","HD01_VD01","HD01_VD02")]
+colnames(race.df) <- c("GEOID","total","white")
+race.df$pctwht <- suppressWarnings(with(race.df, round((as.numeric(white)/as.numeric(total)*100), digit=1)))
+race.spdf <- merge(tract, race.df, by="GEOID", all.x =FALSE)
+race.spdf$pop <- as.numeric(race.spdf$total)/1000
+
+income <- read.csv(income.file, stringsAsFactors = FALSE)
+income.df <- income[,c("GEO.id2","HD01_VD01")]
+colnames(income.df) <- c("GEOID","income")
+income.df$income <- suppressWarnings(round(as.numeric(income.df$income)/1000,digits = 1))
+income.spdf <- merge(tract, income.df, by="GEOID", all.x =FALSE)
+
+agesex <- read.csv(agesex.file, stringsAsFactors = FALSE)
+agesex.df <- agesex[,c("GEO.id2","HC01_EST_VC36", "HC01_EST_VC38", "HC01_EST_VC39")]
+colnames(agesex.df) <- c("GEOID","sex.ratio","oldage.dep","child.dep")
+agesex.df$sex.ratio <- suppressWarnings(as.numeric(agesex.df$sex.ratio))
+agesex.df$oldage.dep <- suppressWarnings(as.numeric(agesex.df$oldage.dep))
+agesex.df$child.dep <- suppressWarnings(as.numeric(agesex.df$child.dep))
+agesex.spdf <- merge(tract, agesex.df, by="GEOID", all.x =FALSE)
+
+eduatt <- read.csv(eduatt.file, stringsAsFactors = FALSE) 
+eduatt.df <- eduatt[,c("GEO.id2","HC01_EST_VC50")]
+colnames(eduatt.df) <- c("GEOID","edu.att")
+eduatt.df$edu.att <- suppressWarnings(as.numeric(eduatt.df$edu.att))
+eduatt.spdf <- merge(tract, eduatt.df, by="GEOID", all.x =FALSE)
+
+dischar <- read.csv(dischar.file, stringsAsFactors = FALSE)
+dischar.df <- dischar[,c("GEO.id2","HC01_EST_VC48")]
+colnames(dischar.df) <- c("GEOID","dis.sta")
+dischar.df$dis.sta <- suppressWarnings(as.numeric(dischar.df$dis.sta))
+dischar.spdf <- merge(tract, dischar.df, by="GEOID", all.x =FALSE)
+
+# read water quality data
+wqspts <- read.csv(wqsploc.file)
+wqspts.spdf <- df2spdf(4,3,"Long","Lat",wqspts)
+```
+
+### Green infrastructure and sewershed
+
+```{r maps}
+# mapping
+# make a complete map
+par(xpd=TRUE,mfrow=c(1,1),mar=c(0.5,0.5,2.5,0.5))
+plot(bound, main="Green Infrastructure in New York City")
+plot(csodra,col="#984ea3", border ="darkgrey",add=TRUE)
+plot(wqspts.spdf, add=TRUE, col="#377eb8", pch=16, cex=1.8)
+plot(csoloc, add=TRUE, col="#e41a1c", pch=16, cex=1.3)
+plot(greinfr, add=TRUE, col="#4daf4a", pch=16, cex=0.8)
+add.northarrow()
+add.scale()
+text(cbind(912000, 250000), family="Arial Black", "Legend", cex=1.2)
+draw.circle(900000, 220000, 1600, col="#377eb8", border = "#377eb8")
+text(cbind(937800, 220000), "WQ sampling locations")
+draw.circle(900000, 230000, 1156, col="#e41a1c", border = "#e41a1c")
+text(cbind(930000, 230000), "CSO locations")
+draw.circle(900000, 240000, 711, col="#4daf4a", border = "#4daf4a")
+text(cbind(929000, 240000), "SGI locations")
+rect(897000, 206000, 903000, 210000, col = "#984ea3", border = "darkgrey")
+text(cbind(936000, 208000), "CSO drainage area")
+
+# check infrastructure data
+quick.map(csoloc,"volume_15", "CSO volume in 2015", "Combined sewer overflow locations in NYC", "BuPu", "jenks")
+quick.map(sewershed,"Impervious", "% impervious", "Impervious percentage by sewershed in NYC", "BuPu","jenks")
+quick.map(csodra,"stormwat_1", "Stormwater vol.", "Stormwater volume by CSO drainage area in NYC", "BuPu","jenks")
+```
+
+### Demography
+
+```{r sociomaps}
+# check socioeconomic data
+quick.map(physhs.spdf,"pctold", "% old house units", "Percentage of old house units in NYC", "Reds","jenks")
+quick.map(race.spdf,"pop", "Population (1000)", "Total population in NYC", "Reds", "jenks")
+quick.map(race.spdf,"pctwht", "% white people", "Percentage of white people in NYC", "Blues", "quantileCuts")
+quick.map(income.spdf,"income", "Income ($1000)", "Median household income in NYC", "Reds", "jenks")
+quick.map(agesex.spdf,"sex.ratio", "M per 100 F", "Sex ratio in NYC", "Blues", "quantileCuts")
+quick.map(agesex.spdf,"oldage.dep", "Old-age depend.", "Old-age dependency in NYC", "Blues", "quantileCuts")
+quick.map(agesex.spdf,"child.dep", "Child depend.", "Child dependencey in NYC", "Blues","quantileCuts")
+quick.map(eduatt.spdf,"edu.att", "Edu. attainment", "Percent with educational attainment in NYC", "Reds", "jenks")
+quick.map(dischar.spdf,"dis.sta", "Disability sta.", "Percent with disability status in NYC", "Reds","jenks")
+```
+
+### References
+Coutts, C., Hahn, M., 2015. Green Infrastructure, Ecosystem Services, and Human Health. Int. J. Environ. Res. Public. Health 12, 9768–9798. doi:10.3390/ijerph120809768
+
+Demuzere, M., Orru, K., Heidrich, O., Olazabal, E., Geneletti, D., Orru, H., Bhave, A.G., Mittal, N., Feliu, E., Faehnle, M., 2014. Mitigating and adapting to climate change: Multi-functional and multi-scale assessment of green urban infrastructure. J. Environ. Manage. 146, 107–115. doi:10.1016/j.jenvman.2014.07.025
+
+Flynn, C., Davidson, C., 2016. Adapting the social-ecological system framework for urban stormwater management: the case of green infrastructure adoption. Ecol. Soc. 21. doi:10.5751/ES-08756-210419
+
+Foster, J., Lowe, A., Winkelman, S., 2011. The value of green infrastructure for urban climate adaptation. Cent. Clean Air Policy 750.
+Getter, K.L., Rowe, D.B., 2006. The role of extensive green roofs in sustainable development. HortScience 41, 1276–1285.
+
+Gillner, S., Vogt, J., Tharang, A., Dettmann, S., Roloff, A., 2015. Role of street trees in mitigating effects of heat and drought at highly sealed urban sites. Landsc. Urban Plan. 143, 33–42. doi:10.1016/j.landurbplan.2015.06.005
+
+Keeley, M., Koburger, A., Dolowitz, D.P., Medearis, D., Nickel, D., Shuster, W., 2013. Perspectives on the Use of Green Infrastructure for Stormwater Management in Cleveland and Milwaukee. Environ. Manage. 51, 1093–1108. doi:10.1007/s00267-013-0032-x
+
+Matthews, T., Lo, A.Y., Byrne, J.A., 2015. Reconceptualizing green infrastructure for climate change adaptation: Barriers to adoption and drivers for uptake by spatial planners. Landsc. Urban Plan. 138, 155–163. doi:10.1016/j.landurbplan.2015.02.010
+
+Pahl-Wostl, C., 2007. Transitions towards adaptive management of water facing climate and global change. Water Resour. Manag. 21, 49–62. doi:10.1007/s11269-006-9040-4
+
+Pahl-Wostl, C., Holtz, G., Kastens, B., Knieper, C., 2010. Analyzing complex water governance regimes: the Management and Transition Framework. Environ. Sci. Policy, Special issue: Water governance in times of change 13, 571–581. doi:10.1016/j.envsci.2010.08.006
+
+Pataki, D.E., Carreiro, M.M., Cherrier, J., Grulke, N.E., Jennings, V., Pincetl, S., Pouyat, R.V., Whitlow, T.H., Zipperer, W.C., 2011. Coupling biogeochemical cycles in urban environments: ecosystem services, green solutions, and misconceptions. Front. Ecol. Environ. 9, 27–36. doi:10.1890/090220
+
+Sussams, L.W., Sheate, W.R., Eales, R.P., 2015. Green infrastructure as a climate change adaptation policy intervention: Muddying the waters or clearing a path to a more secure future? J. Environ. Manage. 147, 184–193. doi:10.1016/j.jenvman.2014.09.003
+
+Wiek, A., Larson, K.L., 2012. Water, people, and sustainability—A systems framework for analyzing and assessing water governance regimes. Water Resour. Manag. 26, 3153–3171. doi:10.1007/s11269-012-0065-6
+
