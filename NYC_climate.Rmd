@@ -12,7 +12,7 @@ The role of green infrastructure as a sustainable drainage system to manage wate
 ```{r setup, include=FALSE}
 options(warn=-1)
 setwd("/nfs/urbangi-data/spatial_data/output")
-knitr::opts_chunk$set(echo = FALSE, cache = FALSE, eval = TRUE, message=FALSE)
+knitr::opts_chunk$set(echo = TRUE, cache = FALSE, eval = TRUE, message=FALSE)
 infolder <- "/nfs/urbangi-data/spatial_data/"
 # libraries
 library(rgdal)
