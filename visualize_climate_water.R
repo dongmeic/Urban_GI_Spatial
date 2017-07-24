@@ -14,6 +14,9 @@ library(maps)
 library(maptools)
 library(animation)
 
+setwd("/nfs/urbangi-data/spatial_data/output")
+infolder <- "/nfs/urbangi-data/spatial_data/"
+
 bound <- readOGR(dsn = paste0(infolder, "BD"), layer = "nyad_dis")
 lonlat <- CRS("+proj=longlat +datum=NAD83")
 crs <- CRS("+proj=lcc +lat_1=40.66666666666666 +lat_2=41.03333333333333
@@ -50,10 +53,6 @@ get.int <- function(x,y){
     cat("oops, you need to select one of \"y\", \"m\", \"d\", and \"h\" with quotes!")
   }
 }
-
-setwd("/nfs/urbangi-data/spatial_data/output")
-infolder <- "/nfs/urbangi-data/spatial_data/"
-
 # # get storm events data in the NYC
 # ndf <- data.frame(matrix(ncol = 58, nrow = 0))
 # storm.events <- read.csv(paste0(infolder,"CLM/Stormdata_1996.csv"))
@@ -225,6 +224,34 @@ pre.p <- ggplot(data = pre.m.h.n,
 ggplotly(pre.p)
 
 # read water quality data 
-read.csv(paste0(infolder, "WQ/water_quality.csv"))
-
-
+library(gdata)
+# collect the common information over years
+wq.df <- data.frame(site=character(),date=character(),DO_top=numeric(),DO_bot=numeric(),FC_top=numeric(),FC_bot=numeric(),Ent_top=numeric(),Ent_bot=numeric(),Tra=numeric())
+for (year in 2008:2016){
+  if (year == 2008){
+    wq.tb <- read.xls(paste0(infolder, "WQ/dep_hs", year,".xls"), sheet = 1, skip=9, blank.lines.skip=TRUE, header = TRUE, stringsAsFactors=FALSE)
+    wq.tb <- wq.tb[c("X...","X","Top.30","Bot.28","Top.15","Bot.14","Top.16","Bot.15","X.8")]
+  }else if (year == 2009){
+    wq.tb <- read.xls(paste0(infolder, "WQ/dep_hs", year,".xls"), sheet = 1, skip=7, blank.lines.skip=TRUE, header = TRUE, stringsAsFactors=FALSE)
+    wq.tb <- wq.tb[c("X...","X","Top.30","Bot.28","Top.15","Bot.14","Top.16","Bot.15","X.8")]
+  }else if (year == 2010 | year == 2011){
+    wq.tb <- read.xls(paste0(infolder, "WQ/dep_hs", year,".xls"), sheet = 1, skip=8, blank.lines.skip=TRUE, header = TRUE, stringsAsFactors=FALSE)
+    wq.tb <- wq.tb[c("X...","X","Top.30","Bot.28","Top.15","Bot.14","Top.16","Bot.15","X.8")]
+  }else{
+    wq.tb <- read.xls(paste0(infolder, "WQ/harbor_sampling_ytd_", year,".xls"), sheet = 1, skip=5, blank.lines.skip=TRUE, header = TRUE, stringsAsFactors=FALSE)
+    wq.tb <- wq.tb[,1:9]
+  }
+  colnames(wq.tb) <- c("site", "date", "DO_top", "DO_bot", "FC_top", "FC_bot", "Ent_top","Ent_bot","Tra")
+  wq.df <- rbind(wq.df, wq.tb)
+  print(year)
+}
+# split the date information
+wq.df$year <- as.numeric(format(as.Date(wq.df$date), format = "%Y"))
+wq.df$month <- as.numeric(format(as.Date(wq.df$date), format = "%m"))
+wq.df$day <- as.POSIXlt(as.Date(wq.df$date))[["yday"]]+1
+sapply(wq.df, class)
+wq.df[,3:9] <- sapply(wq.df[,3:9],as.numeric)
+write.csv(wq.df, "harbor_water_quality.csv")
+wq.df$year <- as.character(wq.df$year)
+wq.df <- wq.df[!is.na(wq.df$year),]
+ggplot(wq.df, aes(year, FC_bot))+geom_boxplot()
