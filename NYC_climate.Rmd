@@ -2,6 +2,7 @@
 title: "A socio-ecological study of green infrastructure in the New York City"
 author: Dongmei Chen
 output: html_document
+self_contained: false
 ---
 
 ## Introduction
