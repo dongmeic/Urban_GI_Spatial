@@ -1,4 +1,5 @@
 # libraries
+library(shiny)
 library(ggplot2)
 library(dplyr)
 library(tidyr)
@@ -31,6 +32,9 @@ harbor_wq.td$year <- as.character(harbor_wq.td$year)
 coords <- read.csv(paste0(infolder, "WQ/harbor_sampling_coordinates.csv"), stringsAsFactors = FALSE)
 coords <- coords[,-1]
 colnames(coords)[1] <- "site"
+#harbor_wq.df <- merge(coords, harbor_wq.td, by="site")
+#harbor_wq.shp <- df2spdf(3,2,"Long","Lat",harbor_wq.df)
+#writeOGR(harbor_wq.shp, dsn=".", layer="harbor_water_quality", overwrite_layer = TRUE,driver = "ESRI Shapefile")
 bound <- readOGR(dsn = paste0(infolder, "BD"), layer = "nyc_bound")
 bound <- spTransform(bound, lonlat)
 #longlat <- bound %>% fortify() %>% select(long,lat)

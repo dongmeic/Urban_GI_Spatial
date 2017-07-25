@@ -176,6 +176,7 @@ colnames(physhs.df) <- c("GEOID","total","old")
 physhs.df$pctold <- suppressWarnings(with(physhs.df, ifelse(is.na(total) | is.na(old), NA, round((as.numeric(old)/as.numeric(total)*100), digit=1))))
 physhs.df$pctold <- with(physhs.df, ifelse(pctold > 100, NA, pctold))
 physhs.spdf <- merge(tract, physhs.df, by="GEOID", all.x =FALSE)
+writeOGR(physhs.spdf, dsn=".", layer="house_characteristics", overwrite_layer = TRUE,driver = "ESRI Shapefile")
 
 race <- read.csv(race.file, stringsAsFactors = FALSE)
 race.df <- race[,c("GEO.id2","HD01_VD01","HD01_VD02")]
@@ -183,12 +184,14 @@ colnames(race.df) <- c("GEOID","total","white")
 race.df$pctwht <- suppressWarnings(with(race.df, round((as.numeric(white)/as.numeric(total)*100), digit=1)))
 race.spdf <- merge(tract, race.df, by="GEOID", all.x =FALSE)
 race.spdf$pop <- as.numeric(race.spdf$total)/1000
+writeOGR(race.spdf, dsn=".", layer="race", overwrite_layer = TRUE,driver = "ESRI Shapefile")
 
 income <- read.csv(income.file, stringsAsFactors = FALSE)
 income.df <- income[,c("GEO.id2","HD01_VD01")]
 colnames(income.df) <- c("GEOID","income")
 income.df$income <- suppressWarnings(round(as.numeric(income.df$income)/1000,digits = 1))
 income.spdf <- merge(tract, income.df, by="GEOID", all.x =FALSE)
+writeOGR(income.spdf, dsn=".", layer="income", overwrite_layer = TRUE,driver = "ESRI Shapefile")
 
 agesex <- read.csv(agesex.file, stringsAsFactors = FALSE)
 agesex.df <- agesex[,c("GEO.id2","HC01_EST_VC36", "HC01_EST_VC38", "HC01_EST_VC39")]
@@ -197,18 +200,21 @@ agesex.df$sex.ratio <- suppressWarnings(as.numeric(agesex.df$sex.ratio))
 agesex.df$oldage.dep <- suppressWarnings(as.numeric(agesex.df$oldage.dep))
 agesex.df$child.dep <- suppressWarnings(as.numeric(agesex.df$child.dep))
 agesex.spdf <- merge(tract, agesex.df, by="GEOID", all.x =FALSE)
+writeOGR(agesex.spdf, dsn=".", layer="age_sex", overwrite_layer = TRUE,driver = "ESRI Shapefile")
 
 eduatt <- read.csv(eduatt.file, stringsAsFactors = FALSE) 
 eduatt.df <- eduatt[,c("GEO.id2","HC01_EST_VC50")]
 colnames(eduatt.df) <- c("GEOID","edu.att")
 eduatt.df$edu.att <- suppressWarnings(as.numeric(eduatt.df$edu.att))
 eduatt.spdf <- merge(tract, eduatt.df, by="GEOID", all.x =FALSE)
+writeOGR(eduatt.spdf, dsn=".", layer="education", overwrite_layer = TRUE,driver = "ESRI Shapefile")
 
 dischar <- read.csv(dischar.file, stringsAsFactors = FALSE)
 dischar.df <- dischar[,c("GEO.id2","HC01_EST_VC48")]
 colnames(dischar.df) <- c("GEOID","dis.sta")
 dischar.df$dis.sta <- suppressWarnings(as.numeric(dischar.df$dis.sta))
 dischar.spdf <- merge(tract, dischar.df, by="GEOID", all.x =FALSE)
+writeOGR(dischar.spdf, dsn=".", layer="disability", overwrite_layer = TRUE,driver = "ESRI Shapefile")
 
 # read water quality data
 wqspts <- read.csv(wqsploc.file)
