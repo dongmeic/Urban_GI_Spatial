@@ -26,7 +26,7 @@ map <- tm_shape(gi.shp)+tm_symbols(size=1, col="GI_TECHNOL") +
   tm_layout(legend.outside = TRUE, legend.outside.position = "bottom", legend.stack = "horizontal")
 physhs.shp$old <- as.numeric(physhs.shp$old)
 map <- qtm(physhs.shp, fill = "old", format="World", style="col_blind")
-getJenksBreaks(physhs.shp$old, 6)
+getJenksBreaks(physhs.shp$pctold, 6)
 map <- tm_shape(physhs.shp) +
   tm_fill("old", title = "Occupied housing units (1939 or earlier)", style = "fixed",
           breaks = c(0.0, 18.0, 35.1, 51.1, 67.2, 100.0),

@@ -257,3 +257,14 @@ quick.map(agesex.spdf,"oldage.dep", "Old-age depend.", "Old-age dependency in NY
 quick.map(agesex.spdf,"child.dep", "Child depend.", "Child dependencey in NYC", "Blues", "child", "quantileCuts")
 quick.map(eduatt.spdf,"edu.att", "Edu. attainment", "Percent with educational attainment in NYC", "Reds", "education", "jenks")
 quick.map(dischar.spdf,"dis.sta", "Disability sta.", "Percent with disability status in NYC", "Reds", "disability", "jenks")
+
+# write outputs
+df <- merge(dischar.df, eduatt.df, by="GEOID")
+df <- merge(df, agesex.df, by="GEOID")
+df <- merge(df, physhs.df, by="GEOID")
+df <- merge(df, income.df, by="GEOID")
+df <- merge(df, race.df, by="GEOID")
+names(df)[which(names(df)== "total.y")] <- "totrace"
+names(df)[which(names(df)== "total.x")] <- "totagesex"
+spdf <- merge(tract, df, by="GEOID", all.x =FALSE)
+writeOGR(spdf, dsn=".", layer="socioeco_vars", overwrite_layer = TRUE,driver = "ESRI Shapefile")
