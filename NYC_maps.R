@@ -4,6 +4,7 @@ library(sf)
 library(leaflet)
 library(dplyr)
 library(RColorBrewer)
+library(rgdal)
 
 setwd("/nfs/urbangi-data/spatial_data/output")
 infolder <- "/nfs/urbangi-data/spatial_data/"
@@ -67,7 +68,7 @@ tab <- tabPanel(title = 'Thematic maps for the socioeconomic status in the NYC',
 ui <- navbarPage('Urban GI Project', tab)
 
 # Server
-server <- function(input, output) {
+server <- function(input, output){
   # var <- reactive({
   #   input$map_topics
   # })
@@ -75,13 +76,7 @@ server <- function(input, output) {
   #   legtitles[which(names(brks.df)== input$map_topics)]
   # })
   output$map <- renderLeaflet({
-    map <- tm_shape(vars.shp) +
-      tm_fill(input$map_topics,
-              style="jenks",
-              textNA = "Missing",
-              colorNA = "white") +
-      tm_borders()
-    tmap_leaflet(map)
+    tmap_leaflet(tm_shape(vars.shp) + tm_fill(input$map_topics,style="jenks",textNA = "Missing", colorNA = "white") + tm_borders())
   })
 }
 
