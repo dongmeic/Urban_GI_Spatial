@@ -3,12 +3,19 @@ library(shiny)
 library(rgdal)
 library(tmap)
 library(leaflet)
+library(knitr)
 
 # data
-#lonlat <- CRS("+proj=longlat +datum=NAD83")
-infolder <- "/nfs/urbangi-data/spatial_data/"
-gi <- readOGR(dsn = paste0(infolder, "GI"), layer ="GI_assets_public", stringsAsFactors = FALSE)
-head(gi)
+# setwd("/nfs/urbangi-data/spatial_data/output")
+# save(list = ls(all.names = TRUE), file = "gi_maps.RData", envir = .GlobalEnv)
+# infolder <- "/nfs/urbangi-data/spatial_data/"
+# gi <- readOGR(dsn = paste0(infolder, "GI"), layer ="GI_assets_public", stringsAsFactors = FALSE)
+# head(gi)
+
+knitr::knit(text ='```{r}
+            load(url("https://github.com/dongmeic/Urban_GI_Spatial/blob/master/gi_maps.RData?raw=true"))
+            ```')
+
 # user interface
 choices.wb <- c("Select All", unique(gi$Waterbody))
 
