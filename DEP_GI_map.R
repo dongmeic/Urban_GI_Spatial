@@ -5,7 +5,7 @@ library(tmap)
 library(leaflet)
 library(knitr)
 
-# data
+## data
 # setwd("/nfs/urbangi-data/spatial_data/output")
 # save(list = ls(all.names = TRUE), file = "gi_maps.RData", envir = .GlobalEnv)
 # infolder <- "/nfs/urbangi-data/spatial_data/"
@@ -16,7 +16,7 @@ knitr::knit(text ='```{r}
             load(url("https://github.com/dongmeic/Urban_GI_Spatial/blob/master/gi_maps.RData?raw=true"))
             ```')
 
-# user interface
+## user interface
 choices.wb <- c("Select All", unique(gi$Waterbody))
 
 in1 <- checkboxGroupInput(inputId = "Status_Gro", 
@@ -46,6 +46,7 @@ ui <- bootstrapPage(
   absolutePanel(top = 120, left = 10, draggable = TRUE, in1, in2, in3)
 )
 
+## server
 server <- function(input, output, session) {
   
   observe({
