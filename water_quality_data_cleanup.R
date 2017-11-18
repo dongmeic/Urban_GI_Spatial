@@ -1,3 +1,5 @@
+# By Dongmei Chen
+# This script is designed to clean up water quality data and identify the point pattern of the sampling sites
 # libraries
 library(dplyr)
 library(tidyr)
@@ -6,6 +8,9 @@ library(maptools)
 library(gdata)
 library(readxl)
 library(reshape2)
+library(spatstat)
+library(sp)
+library(raster)
 
 # global settings
 lonlat <- CRS("+proj=longlat +datum=NAD83")
@@ -43,7 +48,7 @@ getloc <- function(path,file.name, year, layer.name){
       pts.df <- as.data.frame(pts.spdf[,c("Name")]); pts.df <- pts.df[,-4]
       colnames(pts.df) <- c("SiteName", "lon", "lat")
       pts.df$year <- rep(year, length(pts.df$SiteName))
-    }else if(year == 2016){
+    }else if(year >= 2016){
       pts.df <- as.data.frame(pts.spdf[,c("Name", "Site_Name")]); pts.df <- pts.df[,-5]
       colnames(pts.df) <- c("SiteID", "SiteName", "lon", "lat")
       pts.df$year <- rep(year, length(pts.df$SiteID))
@@ -82,6 +87,7 @@ clean.wta <- function(df){
   return(DF2)
 }
 
+##################################### Clean-up datasets #############################################
 # harbor water
 # collect common information over years
 wq.df <- data.frame(site=character(),date=character(),DO_top=numeric(),DO_bot=numeric(),FC_top=numeric(),FC_bot=numeric(),Ent_top=numeric(),Ent_bot=numeric(),Tra=numeric())
@@ -109,16 +115,18 @@ wq.df$month <- as.numeric(format(as.Date(wq.df$date), format = "%m"))
 wq.df$day <- as.POSIXlt(as.Date(wq.df$date))[["yday"]]+1
 sapply(wq.df, class)
 wq.df[,3:9] <- sapply(wq.df[,3:9],as.numeric)
-write.csv(wq.df, "harbor_water_quality.csv")
+write.csv(wq.df, "harbor_water_quality.csv", row.names=FALSE)
 harbor_wq <- read.csv('harbor_water_quality.csv', stringsAsFactors = FALSE)
 harbor_wq <- harbor_wq[!is.na(harbor_wq$year),]
 harbor_wq.td <- gather(harbor_wq, Key, Value, -site, -date, -year, -month, -day)
-harbor_wq.td <- harbor_wq.td[harbor_wq.td$Key!="X",]
 harbor_wq.td$year <- as.character(harbor_wq.td$year)
 coords <- read.csv(paste0(infolder, "WQ/DEP/harbor_sampling_coordinates.csv"), stringsAsFactors = FALSE)
 coords <- coords[,-1]
 colnames(coords)[1] <- "site"
 harbor_wq.df <- merge(coords, harbor_wq.td, by="site")
+harborwq.df <- merge(coords, harbor_wq, by="site")
+colnames(harborwq.df)[2:3] <- c("lat", "lon")
+write.csv(harborwq.df, "harbor_WQ_pts.csv", row.names=FALSE)
 harbor_wq.shp <- df2spdf(3,2,"Long","Lat",harbor_wq.df)
 writeOGR(harbor_wq.shp, dsn=".", layer="harbor_water_quality", overwrite_layer = TRUE,driver = "ESRI Shapefile")
 
@@ -235,7 +243,8 @@ filename <- paste0("Save the Sound Water Quality Data (c) ", year)
 file <- paste0(infolder, "WQ/CF/", filename, ".xlsx")
 n <- length(excel_sheets(file))
 df.all <- data.frame(matrix(ncol = 12, nrow = 0)) # skip if year = "2016 -2"
-colnames(df.all) <- c("SiteID", "SiteName", "Town", "Date", "Time", "Ent", "MEnt","Pre0", "Pre1", "Pre2", "Pre3", "CumPre")
+colnames <- c("SiteID", "SiteName", "Date", "Ent", "MEnt","Pre0", "Pre1", "Pre2", "Pre3", "CumPre")
+colnames(df.all) <- colnames
 for (i in 1:n){
   df <- read.xls(file, sheet=i, skip=0, header = TRUE, stringsAsFactors=FALSE)
   colnames(df) <- colnames(df.all)
@@ -243,20 +252,25 @@ for (i in 1:n){
   print(i)
 }
 write.csv(df.all, "CF_WQ_2015.csv", row.names=FALSE) # change manually
+ 
+# 2017
+df.17 <- read.csv(paste0(infolder, "WQ/CF/2017 STS Entero Data EXCEL Release.csv"))
+df.17 <- df.17[, -which(names(df.17) %in% c("State","X"))]
+colnames(df.17) <- colnames
+write.csv(df.17, "CF_WQ_2017.csv", row.names=FALSE)
 
-# combine years 2014 - 2016
-cf.14.1 <- read.csv("CF_WQ_2014_1.csv")
-colnames <- c("SiteID", "SiteName", "Date", "Ent", "MEnt","Pre0", "Pre1", "Pre2", "Pre3", "CumPre")
+# combine years 2014 - 2017
+cf.14.1 <- read.csv("CF_WQ_2014_1.csv", stringsAsFactors=FALSE)
 cf.14.1 <- cf.14.1[,1:11];cf.14.1 <- cf.14.1[,-5]
 cf.14.1 <- cf.14.1[colnames]
-cf.14.2 <- read.csv("CF_WQ_2014_2.csv")
+cf.14.2 <- read.csv("CF_WQ_2014_2.csv", stringsAsFactors=FALSE)
 cf.14.2 <- cf.14.2[,1:11];cf.14.2 <- cf.14.2[,-5]
 colnames(cf.14.2)[which(colnames(cf.14.2)=="MCFU")] <- "MEnt"
 cf.14.2 <- cf.14.2[colnames]
-cf.15 <- read.csv("CF_WQ_2015.csv")
-cf.16 <- read.csv("CF_WQ_2016.csv")
-df.all <- data.frame(matrix(ncol = 12, nrow = 0))
-cf <- rbind(cf.15, cf.16)
+cf.15 <- read.csv("CF_WQ_2015.csv", stringsAsFactors=FALSE)
+cf.16 <- read.csv("CF_WQ_2016.csv", stringsAsFactors=FALSE)
+cf.17 <- read.csv("CF_WQ_2017.csv", stringsAsFactors=FALSE)
+cf <- rbind(cf.15, cf.16, cf.17)
 cf <- cf[,-3]; cf <- cf[,-4]
 cf <- rbind(cf.14.1, cf.14.2, cf)
 write.csv(cf, "CF_WQ.csv", row.names=FALSE)
@@ -270,11 +284,15 @@ site.15 <- getloc("CF","Season Summary 2015",2015,"STS 2015 Dynamic Map.xlsx")
 write.csv(site.15, "CF_WQ_Sites_2015.csv", row.names=FALSE)
 site.16 <- getloc("CF","Season Summary 2016",2016,"STS 2016 Google Map.xlsx")
 write.csv(site.16, "CF_WQ_Sites_2016.csv", row.names=FALSE)
+site.17 <- getloc("CF","Season Summary 2017",2017,"STS 2017 Google Map.xlsx")
+write.csv(site.17, "CF_WQ_Sites_2017.csv", row.names=FALSE)
+
 # reorganize sites in 2015
 site.15.1 <- merge(cf.15, site.15, by="SiteName")
 site.15.2 <- site.15.1[,c("SiteID","lon","lat","year")]
 site.16.1 <- site.16[,c("SiteID","lon","lat","year")]
-cf.sites <- rbind(site.13, site.14, site.15.2, site.16.1)
+site.17.1 <- site.17[,c("SiteID","lon","lat","year")]
+cf.sites <- rbind(site.13, site.14, site.15.2, site.16.1, site.17.1)
 # remove duplicated points
 cf.sites <- cf.sites[!duplicated(cf.sites[,1:3]),]
 write.csv(cf.sites, "CF_WQ_Sites_All.csv", row.names=FALSE)
@@ -310,6 +328,312 @@ wqp.df <- wqp.res %>%
   head(wqp.df.1) # final check 
   write.csv(wqp.df.1, "Portal_WQ_pts.csv", row.names=FALSE)
   spdf.wqp <- df2spdf(13,12,"lon","lat",wqp.df.1)
-  writeOGR(spdf.wqp, dsn=".", layer="Portal_WQ", overwrite_layer = TRUE,driver = "ESRI Shapefile") 
-
+  writeOGR(spdf.wqp, dsn=".", layer="Portal_WQ", overwrite_layer = TRUE,driver = "ESRI Shapefile")
   
+##################################### Point Pattern Analysis #############################################
+# get an uniform data frame for water quality dta from different sources
+# (harbor water, water trail association, CFE/Save the sound, WQ Portal)
+colnames.com <- c("site", "lon", "lat", "ent", "year", "month", "day")
+harbor_wq <- read.csv('harbor_WQ_pts.csv', stringsAsFactors = FALSE)
+harbor_wq <- harbor_wq[c("site", "lon", "lat", "Ent_top", "year", "month", "day")]
+colnames(harbor_wq) <- colnames.com
+NYCWTA_wq <- read.csv('NYCWTA_WQ_pts.csv', stringsAsFactors = FALSE)
+NYCWTA_wq <- NYCWTA_wq[c("loc", "lon", "lat", "MPN", "year", "month", "day")]
+colnames(NYCWTA_wq) <- colnames.com
+cf_wq <- read.csv('CF_WQ_pts.csv', stringsAsFactors = FALSE) 
+cf_wq <- cf_wq[c("SiteName", "lon", "lat", "Ent", "year", "month", "day")]
+colnames(cf_wq) <- colnames.com
+Portal_wq <- read.csv('Portal_WQ_pts.csv', stringsAsFactors = FALSE)
+Portal_wq <- Portal_wq[c("Id", "lon", "lat", "Ent", "year", "month", "day")]
+colnames(Portal_wq) <- colnames.com
+all_wq_pts <- rbind(harbor_wq, NYCWTA_wq, cf_wq, Portal_wq)
+write.csv(all_wq_pts, "wq_pts_all.csv", row.names=FALSE)
+wq_pts <- all_wq_pts[!duplicated(all_wq_pts[,2:3]),]
+
+# how many sampling sites?
+habor <- readOGR(".", "harbor_water_quality", stringsAsFactors = FALSE)
+# check duplicates
+coordinates(wq_pts) =~lon+lat
+proj4string(wq_pts) <- lonlat
+wq_pts_proj <- spTransform(wq_pts, nyc.crs)
+zero=zerodist(wq_pts)
+length(unique(zero[,1]))
+##Create a window(boundary) object to define the study site.
+tract <- readOGR(dsn = paste0(infolder, "BD"), layer ="cb_2015_36_tract_500k_clip_proj", stringsAsFactors = FALSE)
+##as.owin: Convert Data To Class owin
+nyadwi <- readOGR(dsn = paste0(infolder, "BD"), layer ="nyadwi_dis", stringsAsFactors = FALSE)
+plot(nyadwi)
+plot(tract, bord="red", add=T)
+inside <- !is.na(over(wq_pts_proj, as(nyadwi, "SpatialPolygons")))
+wq_pts_in <- wq_pts_proj[inside, ]
+writeOGR(wq_pts_in, dsn=".", layer="wq_pts_in", overwrite_layer = TRUE,driver = "ESRI Shapefile")
+plot(wq_pts_in, col="blue", add=T)
+wq.df <- as.data.frame(wq_pts_in)
+window = as.owin(nyadwi)
+nyc.ppp = ppp(x=wq.df$lon,y=wq.df$lat,window=window)
+nyc.ppp <- as.ppp(nyc.ppp)
+density <- nyc.ppp$n/sum(sapply(slot(tract,"polygons"),slot,"area")) # 3.299963e-08
+
+##Define number of quadrats that you want to use in your analysis.
+##Here, quads is the number that you square to get your total number of quadrats.
+##For example, if quads = 4, then the total number of quadrats = 16.
+
+quads = 20
+
+##Use the function "quadratcount" to calculate the number of points per quadrat.
+##quadratcount:Quadrat counting for a point pattern
+qcount = quadratcount(nyc.ppp, nx = quads, ny = quads)
+
+##Create a map showing the quadrats overlayed on the window file with the 
+##number of points displayed per quadrat.
+jpeg("QuadratCounting_wq_20.jpeg",2500,2000,res=300)
+plot(nyc.ppp,pch="+",cex=0.5,main="WQ sampling sites in NYC")
+plot(qcount,add=T,col="red")
+dev.off()
+
+##Now, prepare the data to be able to calculate the variables for a quadrat analysis.
+##First, define the quadrat count dataset as a data frame.
+qcount.df = as.data.frame((qcount))
+qcount.df
+# total points
+sum(qcount.df$Freq) # 277
+# mean 
+sum(qcount.df$Freq)/16 # 17.3125
+
+##Second, count the number of quadrats with a distinct number of points.
+qcount.ndf = as.data.frame(table(qcount.df$Freq))
+colnames(qcount.df) = c("x","f")
+
+##Third, create new columns for total number of points and for fx^2.
+qcount.df = cbind(qcount.df, TotPoints = as.numeric(qcount.df$x) * as.numeric(qcount.df$f))
+qcount.df = cbind(qcount.df, fx2 = (as.numeric(qcount.df$x)^2)*as.numeric(qcount.df$f))
+
+##Fourth, calculate the sum of each column, which you will use as inputs into the 
+##formula for VMR.
+f.sum = sum(qcount.df$f)
+f.sum # 277
+TotPoints.sum = sum(qcount.df$TotPoints)
+TotPoints.sum # 28803
+fx2.sum = sum(qcount.df$fx2)
+fx2.sum # 4110179
+##Fifth, calculate VAR, MEAN, and VMR.
+m <- quads^2
+VAR = (fx2.sum-TotPoints.sum^2/m)/(m-1)
+VAR # 5103.125
+MEAN = TotPoints.sum/m
+MEAN # 72.0075
+VMR = VAR/MEAN
+VMR # 70.86936
+##Finally, perform the test statistic to test for the existence of a random spatial pattern.
+
+# chi-square 
+chi = VMR*(m-1)
+chi
+1-pchisq(chi,m-1)
+
+nearestNeighbor = nndist(nyc.ppp)
+png("hist.png", width=5, height=6, units="in", res=300)
+hist(nearestNeighbor,xlim=c(0,10000),breaks=400,main = "Frequency of NND", xlab = "Nearest neighbour distance (NND)", ylab = "Frequency", col = "lightgreen", cex.lab=1.2)
+box()
+dev.off()
+
+##Convert the nearestNeighbor object into a dataframe.
+nearestNeighbor=as.data.frame(as.numeric(nearestNeighbor))
+head(nearestNeighbor)
+##Change the column name to "Distance"
+colnames(nearestNeighbor) = "Distance"
+
+##Calculate the nearest neighbor statistic to test for a random spatial distribution. 
+# density = total points/area
+# basic mean distance
+NND_bar <- mean(nearestNeighbor$Distance)
+# perfectly random, distance
+density <- intensity.ppp(nyc.ppp)
+density # 2.384448e-08
+NND_R <- 1/(2*sqrt(density)) 
+NND_R # 3237.994
+NND_D <- 1.07453/sqrt(density)
+NND_D # 6958.644
+R <- NND_bar/NND_R
+R # 0.4874665
+sigma_NND <- 0.26136/sqrt(TotPoints.sum*density)
+sigma_NND # 9.973012
+Z <- (NND_bar-NND_R)/sigma_NND
+Z # -166.4072
+
+city <- readOGR(dsn = paste0(infolder, "BD"), layer ="nyad_dis", stringsAsFactors = FALSE)
+plot(city, col='light blue')
+plot(wq_pts_in, col='red', pch='+', add=T)
+xy <- coordinates(wq_pts_in)
+dim(xy)
+xy <- unique(xy)
+dim(xy)
+head(xy)
+# mean center
+mc <- apply(xy, 2, mean)
+# standard distance
+sd <- sqrt(sum((xy[,1] - mc[1])^2 + (xy[,2] - mc[2])^2) / nrow(xy))
+points(cbind(mc[1], mc[2]), pch='*', col='green', cex=5)
+# make a circle
+bearing <- 1:360 * pi/180
+cx <- mc[1] + sd * cos(bearing)
+cy <- mc[2] + sd * sin(bearing)
+circle <- cbind(cx, cy)
+lines(circle, col='green', lwd=2)
+cityArea <- area(city)
+dens <- nrow(xy) / cityArea # 4.829621e-07
+
+r <- raster(city)
+res(r) <- 1000
+
+r <- rasterize(city, r)
+plot(r)
+quads <- as(r, 'SpatialPolygons')
+plot(quads, add=TRUE)
+plot(wq_pts_in, col='red',pch='+', add=T)
+
+nwq <- rasterize(coordinates(wq_pts_in), r, fun='count', background=0)
+plot(nwq)
+plot(city, add=TRUE)
+
+ncwq <- mask(nwq, r)
+plot(ncwq)
+plot(city, add=TRUE)
+
+f <- freq(ncwq, useNA='no')
+head(f)
+plot(f, pch=20)
+
+# number of quadrats
+quadrats <- sum(f[,2])
+# number of cases
+cases <- sum(f[,1] * f[,2])
+mu <- cases / quadrats
+mu # 0.01069646
+
+ff <- data.frame(f)
+colnames(ff) <- c('K', 'X')
+ff$Kmu <- ff$K - mu
+ff$Kmu2 <- ff$Kmu^2
+ff$XKmu2 <- ff$Kmu2 * ff$X
+head(ff)
+
+s2 <- sum(ff$XKmu2) / (sum(ff$X)-1)
+s2 # 0.01486239
+
+VMR <- s2 / mu
+VMR # 1.389469
+
+d <- dist(xy)
+class(d)
+
+dm <- as.matrix(d)
+dm[1:5, 1:5]
+
+diag(dm) <- NA
+dm[1:5, 1:5]
+
+dmin <- apply(dm, 1, min, na.rm=TRUE)
+head(dmin)
+
+mdmin <- mean(dmin)
+
+wdmin <- apply(dm, 1, which.min)
+
+plot(city)
+plot(wq_pts_in, col='red', pch=16, add=T)
+ord <- rev(order(dmin))
+
+far25 <- ord[1:25]
+neighbors <- wdmin[far25]
+
+points(xy[far25, ], col='blue', pch=20)
+points(xy[neighbors, ], col='red')
+
+# drawing the lines, easiest via a loop
+for (i in far25) {
+  lines(rbind(xy[i, ], xy[wdmin[i], ]), col='red')
+}
+
+max(dmin)
+## [1] 12261.89
+# get the unique distances (for the x-axis)
+distance <- sort(unique(round(dmin)))
+# compute how many cases there with distances smaller that each x
+Gd <- sapply(distance, function(x) sum(dmin < x))
+# normalize to get values between 0 and 1
+Gd <- Gd / length(dmin)
+plot(distance, Gd)
+
+stepplot <- function(x, y, type='l', add=FALSE, ...) {
+  x <- as.vector(t(cbind(x, c(x[-1], x[length(x)]))))
+  y <- as.vector(t(cbind(y, y)))
+  if (add) {
+    lines(x,y, ...)
+  } else {
+    plot(x,y, type=type, ...)
+  }
+}
+
+stepplot(distance, Gd, type='l', lwd=2)
+
+# get the centers of the 'quadrats' (raster cells)
+p <- rasterToPoints(r)
+# compute distance from all sampling sites to these cell centers
+d2 <- pointDistance(p[,1:2], xy, longlat=FALSE)
+
+# the remainder is similar to the G function
+Fdistance <- sort(unique(round(d2)))
+mind <- apply(d2, 1, min)
+Fd <- sapply(Fdistance, function(x) sum(mind < x)) # this takes a while
+Fd <- Fd / length(mind)
+plot(Fdistance, Fd, type='l', lwd=2)
+
+
+ef <- function(d, lambda) {
+  E <- 1 - exp(-1 * lambda * pi * d^2)
+}
+expected <- ef(0:12000, dens)
+
+plot(distance, Gd, type='l', lwd=2, col='red', las=1,
+     ylab='F(d) or G(d)', xlab='Distance', yaxs="i", xaxs="i")
+lines(Fdistance, Fd, lwd=2, col='blue')
+lines(0:12000, expected, lwd=2)
+legend(8000, .3,
+       c(expression(italic("G")["d"]), expression(italic("F")["d"]), 'expected'),
+       lty=1, col=c('red', 'blue', 'black'), lwd=2, bty="n")
+
+distance <- seq(1, 30000, 100)
+Kd <- sapply(distance, function(x) sum(d < x)) # takes a while
+Kd <- Kd / (length(Kd) * dens)
+plot(distance, Kd, type='l', lwd=2)
+
+library(maptools)
+cityOwin <- as.owin(city)
+class(cityOwin)
+cityOwin
+
+pts <- coordinates(wq_pts_in)
+head(pts)
+
+p <- ppp(pts[,1], pts[,2], window=cityOwin)
+class(p)
+p
+plot(p)
+ds <- density(p)
+class(ds)
+plot(ds, main='wq sampling density')
+
+nrow(pts) #277
+r <- raster(ds)
+s <- sum(values(r), na.rm=TRUE)
+s * prod(res(r)) # 49.74827
+
+str(ds)
+sum(ds$v, na.rm=TRUE) * ds$xstep * ds$ystep
+p$n #55
+
+win <- aggregate(tract)
+plot(tract)
+points(p, col='red', pch=20)
+plot(win, add=TRUE, border='blue', lwd=3)
