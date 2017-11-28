@@ -348,6 +348,7 @@ Portal_wq <- Portal_wq[c("Id", "lon", "lat", "Ent", "year", "month", "day")]
 colnames(Portal_wq) <- colnames.com
 all_wq_pts <- rbind(harbor_wq, NYCWTA_wq, cf_wq, Portal_wq)
 write.csv(all_wq_pts, "wq_pts_all.csv", row.names=FALSE)
+all_wq_pts <- read.csv("wq_pts_all.csv", stringsAsFactors = FALSE)
 wq_pts <- all_wq_pts[!duplicated(all_wq_pts[,2:3]),]
 
 # how many sampling sites?
