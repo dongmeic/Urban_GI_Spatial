@@ -1,0 +1,11 @@
+name: dep_gi_map
+title: DEP_GI_map
+account: dongmeic
+server: shinyapps.io
+appId: 211653
+bundleId: 970945
+url: https://dongmeic.shinyapps.io/dep_gi_map/
+when: 1504765459.3391
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: harborWQ.RData|mapping_GI_variables.R|NYC_climate.Rmd|NYC_GI_ses.R|NYC_maps.R|README.md|thematic_maps.R|varmaps.RData|visualize_climate_water.R|docs/_config.yml|docs/index.html

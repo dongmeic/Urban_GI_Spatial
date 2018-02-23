@@ -1,0 +1,11 @@
+name: thematic_maps
+title: Thematic_Maps
+account: dongmeic
+server: shinyapps.io
+appId: 199542
+bundleId: 915892
+url: https://dongmeic.shinyapps.io/thematic_maps/
+when: 1501029146.27224
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: mapping_GI_variables.R|NYC_climate.Rmd|NYC_GI_ses.R|README.md|thematic_maps.R|visualize_climate_water.R|docs/_config.yml|docs/index.html

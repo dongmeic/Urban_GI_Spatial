@@ -1,0 +1,11 @@
+name: harbor_water_quality
+title: Harbor_Water_Quality
+account: dongmeic
+server: shinyapps.io
+appId: 199540
+bundleId: 915887
+url: https://dongmeic.shinyapps.io/harbor_water_quality/
+when: 1501028682.98571
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: mapping_GI_variables.R|NYC_climate.Rmd|NYC_maps.R|README.md|thematic_maps.R|visualize_climate_water.R|docs/_config.yml|docs/index.html

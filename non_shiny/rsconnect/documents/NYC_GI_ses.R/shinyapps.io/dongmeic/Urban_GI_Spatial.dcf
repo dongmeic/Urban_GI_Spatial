@@ -1,0 +1,11 @@
+name: Urban_GI_Spatial
+title: Urban_GI_Spatial
+account: dongmeic
+server: shinyapps.io
+appId: 199530
+bundleId: 915842
+url: https://dongmeic.shinyapps.io/Urban_GI_Spatial/
+when: 1501026376.68553
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: mapping_GI_variables.R|NYC_climate.Rmd|NYC_maps.R|README.md|thematic_maps.R|visualize_climate_water.R|docs/_config.yml|docs/index.html
