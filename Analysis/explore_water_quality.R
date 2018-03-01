@@ -23,3 +23,5 @@ write.csv(wq.1, "water_quality_date.csv", row.names=FALSE)
 dep_hwq <- read.csv("harbor_WQ_pts.csv",stringsAsFactors = FALSE)
 head(dep_hwq)
 
+# CSO outfalls
+

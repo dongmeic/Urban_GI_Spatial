@@ -1,0 +1,12 @@
+name: SE_maps
+title: SE_maps
+username:
+account: dongmeic
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 290734
+bundleId: 1246341
+url: https://dongmeic.shinyapps.io/SE_maps/
+when: 1519881981.73691
+asMultiple: FALSE
+asStatic: FALSE

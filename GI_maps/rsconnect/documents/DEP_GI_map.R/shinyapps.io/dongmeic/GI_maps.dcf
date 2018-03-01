@@ -1,0 +1,12 @@
+name: GI_maps
+title: GI_maps
+username:
+account: dongmeic
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 290712
+bundleId: 1246331
+url: https://dongmeic.shinyapps.io/GI_maps/
+when: 1519881236.46472
+asMultiple: FALSE
+asStatic: FALSE

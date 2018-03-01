@@ -22,6 +22,7 @@ setwd("/nfs/urbangi-data/spatial_data/output")
 infolder <- "/nfs/urbangi-data/spatial_data/"
 
 # functions
+# convert dataframe to spatial dataframe
 df2spdf <- function(col1, col2, colname1, colname2, df){
   xy <- data.frame(df[,c(col1,col2)])
   coordinates(xy) <- c(colname1, colname2)
@@ -30,6 +31,7 @@ df2spdf <- function(col1, col2, colname1, colname2, df){
   return(spdf)
 }
 
+# get locations
 getloc <- function(path,file.name, year, layer.name){
   kmlfile <- paste0(infolder, "WQ/", path, "/", file.name,".kml")
   pts.spdf <- readOGR(kmlfile, layer.name)
@@ -58,6 +60,7 @@ getloc <- function(path,file.name, year, layer.name){
   return(pts.df)
 }
 
+# clean water trail association data
 clean.wta <- function(df){
   # get dates and high tide time
   df.1 <- df[1:2,]
