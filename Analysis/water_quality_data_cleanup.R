@@ -1,5 +1,6 @@
 # By Dongmei Chen
-# This script is designed to clean up water quality data and identify the point pattern of the sampling sites
+# This script is designed to clean up water quality data and 
+# identify the point pattern of the sampling sites
 # libraries
 library(dplyr)
 library(tidyr)
@@ -68,7 +69,13 @@ clean.wta <- function(df){
   DF <- DF[rep(seq_len(nrow(DF)), each=n),] # repeat dates
   colnames(df.2)[which(colnames(df.2) =="Most Probable Number (MPN) of Enterococcus colonies per 100 ml")] = "MPN"
   #colnames(df.2)[which(colnames(df.2) =="Most Probable Number (MPN) of Enterococcus colonies per 100ml")] = "MPN"
-  df.2 <- df.2[,-which(colnames(df.2) %in% c("Duplicate sample MPN","Duplicate sample","Duplicate Sample","Duplicate sample/notes","Duplicate sample/Notes","Duplicate Sample/Notes","Duplicate Sample/notes","Notes"))]
+  df.2 <- df.2[,-which(colnames(df.2) %in% c("Duplicate sample MPN",
+                                             "Duplicate sample",
+                                             "Duplicate Sample",
+                                             "Duplicate sample/notes",
+                                             "Duplicate sample/Notes",
+                                             "Duplicate Sample/Notes",
+                                             "Duplicate Sample/notes","Notes"))]
   days <- length(unique(DF$`Sample Date`))
   # reorganize the table
   df.2.1 <- rep(df.2[,1],times=days)
@@ -90,19 +97,35 @@ clean.wta <- function(df){
 ##################################### Clean-up datasets #############################################
 # harbor water
 # collect common information over years
-wq.df <- data.frame(site=character(),date=character(),DO_top=numeric(),DO_bot=numeric(),FC_top=numeric(),FC_bot=numeric(),Ent_top=numeric(),Ent_bot=numeric(),Tra=numeric())
+wq.df <- data.frame(site=character(),
+                    date=character(),
+                    DO_top=numeric(),
+                    DO_bot=numeric(),
+                    FC_top=numeric(),
+                    FC_bot=numeric(),
+                    Ent_top=numeric(),
+                    Ent_bot=numeric(),
+                    Tra=numeric())
 for (year in 2008:2016){
   if (year == 2008){
-    wq.tb <- read.xls(paste0(infolder, "WQ/DEP/dep_hs", year,".xls"), sheet = 1, skip=9, blank.lines.skip=TRUE, header = TRUE, stringsAsFactors=FALSE)
+    wq.tb <- read.xls(paste0(infolder, "WQ/DEP/dep_hs", year,".xls"), 
+                      sheet = 1, skip=9, blank.lines.skip=TRUE, 
+                      header = TRUE, stringsAsFactors=FALSE)
     wq.tb <- wq.tb[c("X...","X","Top.30","Bot.28","Top.15","Bot.14","Top.16","Bot.15","X.8")]
   }else if (year == 2009){
-    wq.tb <- read.xls(paste0(infolder, "WQ/DEP/dep_hs", year,".xls"), sheet = 1, skip=7, blank.lines.skip=TRUE, header = TRUE, stringsAsFactors=FALSE)
+    wq.tb <- read.xls(paste0(infolder, "WQ/DEP/dep_hs", year,".xls"), 
+                      sheet = 1, skip=7, blank.lines.skip=TRUE, 
+                      header = TRUE, stringsAsFactors=FALSE)
     wq.tb <- wq.tb[c("X...","X","Top.30","Bot.28","Top.15","Bot.14","Top.16","Bot.15","X.8")]
   }else if (year == 2010 | year == 2011){
-    wq.tb <- read.xls(paste0(infolder, "WQ/DEP/dep_hs", year,".xls"), sheet = 1, skip=8, blank.lines.skip=TRUE, header = TRUE, stringsAsFactors=FALSE)
+    wq.tb <- read.xls(paste0(infolder, "WQ/DEP/dep_hs", year,".xls"),
+                      sheet = 1, skip=8, blank.lines.skip=TRUE, 
+                      header = TRUE, stringsAsFactors=FALSE)
     wq.tb <- wq.tb[c("X...","X","Top.30","Bot.28","Top.15","Bot.14","Top.16","Bot.15","X.8")]
   }else{
-    wq.tb <- read.xls(paste0(infolder, "WQ/DEP/harbor_sampling_ytd_", year,".xls"), sheet = 1, skip=5, blank.lines.skip=TRUE, header = TRUE, stringsAsFactors=FALSE)
+    wq.tb <- read.xls(paste0(infolder, "WQ/DEP/harbor_sampling_ytd_", year,".xls"), 
+                      sheet = 1, skip=5, blank.lines.skip=TRUE, 
+                      header = TRUE, stringsAsFactors=FALSE)
     wq.tb <- wq.tb[,1:9]
   }
   colnames(wq.tb) <- c("site", "date", "DO_top", "DO_bot", "FC_top", "FC_bot", "Ent_top","Ent_bot","Tra")
@@ -120,7 +143,8 @@ harbor_wq <- read.csv('harbor_water_quality.csv', stringsAsFactors = FALSE)
 harbor_wq <- harbor_wq[!is.na(harbor_wq$year),]
 harbor_wq.td <- gather(harbor_wq, Key, Value, -site, -date, -year, -month, -day)
 harbor_wq.td$year <- as.character(harbor_wq.td$year)
-coords <- read.csv(paste0(infolder, "WQ/DEP/harbor_sampling_coordinates.csv"), stringsAsFactors = FALSE)
+coords <- read.csv(paste0(infolder, "WQ/DEP/harbor_sampling_coordinates.csv"), 
+                   stringsAsFactors = FALSE)
 coords <- coords[,-1]
 colnames(coords)[1] <- "site"
 harbor_wq.df <- merge(coords, harbor_wq.td, by="site")
@@ -128,7 +152,8 @@ harborwq.df <- merge(coords, harbor_wq, by="site")
 colnames(harborwq.df)[2:3] <- c("lat", "lon")
 write.csv(harborwq.df, "harbor_WQ_pts.csv", row.names=FALSE)
 harbor_wq.shp <- df2spdf(3,2,"Long","Lat",harbor_wq.df)
-writeOGR(harbor_wq.shp, dsn=".", layer="harbor_water_quality", overwrite_layer = TRUE,driver = "ESRI Shapefile")
+writeOGR(harbor_wq.shp, dsn=".", layer="harbor_water_quality", 
+         overwrite_layer = TRUE,driver = "ESRI Shapefile")
 
 # water trail association
 # collect location info
@@ -174,15 +199,25 @@ df.11$month <- as.numeric(format(as.Date(df.11$date), format = "%m"))
 df.11$day <- as.POSIXlt(as.Date(df.11$date))[["yday"]]+1
 # 2012 - 2016
 file <- "CWQT All Sites from 2012-2016"
-dt.12 <- read.xls(paste0(infolder, "WQ/WTA/", file, ".xlsx"), sheet=1, skip=11, blank.lines.skip=TRUE, header = FALSE, stringsAsFactors=FALSE)
+dt.12 <- read.xls(paste0(infolder, "WQ/WTA/", file, ".xlsx"), 
+                  sheet=1, skip=11, blank.lines.skip=TRUE, 
+                  header = FALSE, stringsAsFactors=FALSE)
 df.12 <- clean.wta(dt.12)
-dt.13 <- read.xls(paste0(infolder, "WQ/WTA/", file, ".xlsx"), sheet=2, skip=13, blank.lines.skip=TRUE, header = FALSE, stringsAsFactors=FALSE)
+dt.13 <- read.xls(paste0(infolder, "WQ/WTA/", file, ".xlsx"), 
+                  sheet=2, skip=13, blank.lines.skip=TRUE, 
+                  header = FALSE, stringsAsFactors=FALSE)
 df.13 <- clean.wta(dt.13)
-dt.14 <- read.xls(paste0(infolder, "WQ/WTA/", file, ".xlsx"), sheet=3, skip=17, blank.lines.skip=TRUE, header = FALSE, stringsAsFactors=FALSE)
+dt.14 <- read.xls(paste0(infolder, "WQ/WTA/", file, ".xlsx"), 
+                  sheet=3, skip=17, blank.lines.skip=TRUE, 
+                  header = FALSE, stringsAsFactors=FALSE)
 df.14 <- clean.wta(dt.14)
-dt.15 <- read.xls(paste0(infolder, "WQ/WTA/", file, ".xlsx"), sheet=4, skip=12, blank.lines.skip=TRUE, header = FALSE, stringsAsFactors=FALSE)
+dt.15 <- read.xls(paste0(infolder, "WQ/WTA/", file, ".xlsx"), 
+                  sheet=4, skip=12, blank.lines.skip=TRUE, 
+                  header = FALSE, stringsAsFactors=FALSE)
 df.15 <- clean.wta(dt.15)
-dt.16 <- read.xls(paste0(infolder, "WQ/WTA/", file, ".xlsx"), sheet=5, skip=11, blank.lines.skip=TRUE, header = FALSE, stringsAsFactors=FALSE)
+dt.16 <- read.xls(paste0(infolder, "WQ/WTA/", file, ".xlsx"), 
+                  sheet=5, skip=11, blank.lines.skip=TRUE, 
+                  header = FALSE, stringsAsFactors=FALSE)
 df.16 <- clean.wta(dt.16)
 df.wta <- rbind(df.11,df.12,df.13,df.14,df.15,df.16)
 df.wta.wq <- merge(df.wta, loc.pts, by="loc")
@@ -214,7 +249,9 @@ filename <- "Save the Sound Water Quality Data (c) 2014_1"
 file <- paste0(infolder, "WQ/CF/", filename, ".xlsx")
 n <- length(excel_sheets(file))
 df.all <- data.frame(matrix(ncol = 14, nrow = 0))
-colnames(df.all) <- c("SiteID", "SiteName", "Date", "Ent", "FC", "Pre0", "Pre1", "Pre2", "Pre3", "CumPre", "MEnt", "MFC", "Pass", "Fail")
+colnames(df.all) <- c("SiteID", "SiteName", "Date", "Ent", "FC", 
+                      "Pre0", "Pre1", "Pre2", "Pre3", "CumPre", 
+                      "MEnt", "MFC", "Pass", "Fail")
 for (i in 1:n){
   if (i ==1){
     df <- read.xls(file, sheet=i, skip=1, header = FALSE, stringsAsFactors=FALSE)
@@ -230,10 +267,12 @@ write.csv(df.all, "CF_WQ_2014_1.csv", row.names=FALSE)
 filename <- "Save the Sound Water Quality Data (c) 2014_2"
 file <- paste0(infolder, "WQ/CF/", filename, ".xlsx")
 df.1 <- read.xls(file, sheet=1, skip=1, header = FALSE, stringsAsFactors=FALSE)
-df.1[1,] <- c("SiteID", "SiteName", "Date", "Ent", "FC", "Pre0", "Pre1", "Pre2", "Pre3", "CumPre", "MCFU", "Pass", "Fail")
+df.1[1,] <- c("SiteID", "SiteName", "Date", "Ent", "FC", 
+              "Pre0", "Pre1", "Pre2", "Pre3", "CumPre", "MCFU", "Pass", "Fail")
 colnames(df.1) <- as.character(unlist(df.1[1,]));df.1 = df.1[-1, ]
 df.2 <- read.xls(file, sheet=2, skip=0, header = FALSE, stringsAsFactors=FALSE)
-colnames(df.2) <- c("SiteID", "SiteName", "Date", "Ent", "FC", "Pre0", "Pre1", "Pre2", "Pre3", "CumPre", "MCFU", "Pass", "Fail")
+colnames(df.2) <- c("SiteID", "SiteName", "Date", "Ent", "FC", 
+                    "Pre0", "Pre1", "Pre2", "Pre3", "CumPre", "MCFU", "Pass", "Fail")
 df <- rbind(df.1, df.2)
 write.csv(df, "CF_WQ_2014_2.csv", row.names=FALSE)
 
@@ -243,7 +282,8 @@ filename <- paste0("Save the Sound Water Quality Data (c) ", year)
 file <- paste0(infolder, "WQ/CF/", filename, ".xlsx")
 n <- length(excel_sheets(file))
 df.all <- data.frame(matrix(ncol = 12, nrow = 0)) # skip if year = "2016 -2"
-colnames <- c("SiteID", "SiteName", "Date", "Ent", "MEnt","Pre0", "Pre1", "Pre2", "Pre3", "CumPre")
+colnames <- c("SiteID", "SiteName", "Date", "Ent", "MEnt",
+              "Pre0", "Pre1", "Pre2", "Pre3", "CumPre")
 colnames(df.all) <- colnames
 for (i in 1:n){
   df <- read.xls(file, sheet=i, skip=0, header = TRUE, stringsAsFactors=FALSE)
@@ -312,7 +352,10 @@ wqp.res <- read.csv(paste0(infolder, "WQ/Portal/result.csv"), stringsAsFactors=F
 wqp.df <- wqp.res %>%
   select("MonitoringLocationIdentifier", "ActivityStartDate", "ActivityStartTime.Time", 
          "CharacteristicName", "ResultMeasureValue", "ResultMeasure.MeasureUnitCode") %>%
-  subset(CharacteristicName %in% c("Dissolved oxygen (DO)","Enterococcus","Fecal Coliform","Temperature, water")) %>%
+  subset(CharacteristicName %in% c("Dissolved oxygen (DO)",
+                                   "Enterococcus",
+                                   "Fecal Coliform",
+                                   "Temperature, water")) %>%
   mutate(
     year = as.numeric(format(as.Date(ActivityStartDate), format = "%Y")),
     month = as.numeric(format(as.Date(ActivityStartDate), format = "%m")),
@@ -321,7 +364,10 @@ wqp.df <- wqp.res %>%
   wqp.df.1 <- wqp.df %>%
     select("ID", "CharacteristicName", "ResultMeasureValue") %>% dcast(ID~CharacteristicName,fill=0) %>%
     merge(wqp.df[,-which(names(wqp.df) %in% c("CharacteristicName", "ResultMeasureValue"))],by="ID") %>%
-    merge(wqp.sites[,which(names(wqp.sites) %in% c("MonitoringLocationIdentifier","LatitudeMeasure","LongitudeMeasure"))], by="MonitoringLocationIdentifier") %>%
+    merge(wqp.sites[,which(names(wqp.sites) %in% c("MonitoringLocationIdentifier",
+                                                   "LatitudeMeasure",
+                                                   "LongitudeMeasure"))], 
+          by="MonitoringLocationIdentifier") %>%
     select(-one_of(c("ID")))
   colnames(wqp.df.1)[1:8] <- c("Id","DO","Ent","FC","T","Date","Time","Unit")
   colnames(wqp.df.1)[12:13] <- c("lat","lon")

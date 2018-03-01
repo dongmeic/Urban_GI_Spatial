@@ -54,7 +54,7 @@ library(knitr)
 # #save(list = ls(all.names = TRUE), file = "harborWQ.RData", envir = .GlobalEnv)
 
 knitr::knit(text ='```{r}
-           load(url("https://github.com/dongmeic/Urban_GI_Spatial/blob/master/harborWQ.RData?raw=true"))
+           load(url("https://github.com/dongmeic/Urban_GI_Spatial/blob/master/WQ_plots/harborWQ.RData?raw=true"))
            ```')
 
 # User Interface

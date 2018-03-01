@@ -9,7 +9,7 @@ library(knitr)
 setwd("/nfs/urbangi-data/spatial_data/output")
 # save(list = ls(all.names = TRUE), file = "gi_maps.RData", envir = .GlobalEnv)
 infolder <- "/nfs/urbangi-data/spatial_data/"
-gi <- readOGR(dsn = paste0(infolder, "GI"), layer ="GI_assets_public", stringsAsFactors = FALSE)
+gi <- readOGR(dsn = paste0(infolder, "GI"), layer ="GI_2018_02_22", stringsAsFactors = FALSE)
 head(gi)
 
 # knitr::knit(text ='```{r}

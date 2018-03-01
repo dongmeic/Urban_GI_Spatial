@@ -18,7 +18,7 @@ library(RColorBrewer)
 
 # githubURL <- "https://github.com/dongmeic/Urban_GI_Spatial/blob/master/varmaps.RData?raw=true"
 knitr::knit(text ='```{r}
-            load(url("https://github.com/dongmeic/Urban_GI_Spatial/blob/master/varmaps.RData?raw=true"))
+            load(url("https://github.com/dongmeic/Urban_GI_Spatial/blob/master/SE_maps/varmaps.RData?raw=true"))
             ```')
 
 # User interface
