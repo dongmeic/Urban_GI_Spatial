@@ -21,6 +21,7 @@ month.colors <- c('#a6cee3','#1f78b4','#b2df8a','#33a02c',
 year.colors <- c('#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99',
                  '#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a')
 bound <- readOGR(dsn = paste0(infolder, "BD"), layer = "nyad_dis")
+bound <- spTransform(bound, crs)
 nyadwi <- readOGR(dsn = paste0(infolder, "BD"), layer ="nyadwi_dis")
 lonlat <- CRS("+proj=longlat +datum=NAD83")
 crs <- CRS("+proj=lcc +lat_1=40.66666666666666 +lat_2=41.03333333333333
@@ -29,7 +30,6 @@ crs <- CRS("+proj=lcc +lat_1=40.66666666666666 +lat_2=41.03333333333333
 # green infrastructure points
 gi_pts <- readOGR(dsn = paste0(infolder, "GI"), layer ="GI_2018_02_22")
 gi_pts <- spTransform(gi_pts, crs)
-proj4string(bound) <- crs
 # water sampling points
 dep_pts <- read.csv(paste0(infolder, "WQ/DEP/harbor_sampling_coordinates.csv"),stringsAsFactors = FALSE)
 # run function df2spdf first
