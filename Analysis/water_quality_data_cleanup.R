@@ -15,7 +15,7 @@ library(raster)
 
 # global settings
 lonlat <- CRS("+proj=longlat +datum=NAD83")
-nyc.crs <- CRS("+proj=lcc +lat_1=40.66666666666666 +lat_2=41.03333333333333
+crs <- CRS("+proj=lcc +lat_1=40.66666666666666 +lat_2=41.03333333333333
            +lat_0=40.16666666666666 +lon_0=-74 +x_0=300000 +y_0=0 +datum=NAD83
            +units=us-ft +no_defs +ellps=GRS80 +towgs84=0,0,0")
 setwd("/nfs/urbangi-data/spatial_data/output")
@@ -28,6 +28,7 @@ df2spdf <- function(col1, col2, colname1, colname2, df){
   coordinates(xy) <- c(colname1, colname2)
   proj4string(xy) <- lonlat
   spdf <- SpatialPointsDataFrame(coords = xy, data = df, proj4string = lonlat)
+  spdf <- spTransform(spdf, crs)
   return(spdf)
 }
 
@@ -64,10 +65,12 @@ getloc <- function(path,file.name, year, layer.name){
 clean.wta <- function(df){
   # get dates and high tide time
   df.1 <- df[1:2,]
-  df.2 <- df[-1:-2,];colnames(df.2) <- as.character(unlist(df.2[1,]));df.2 = df.2[-1, ] # make first row name as the column names in the second half
+  df.2 <- df[-1:-2,];colnames(df.2) <- as.character(unlist(df.2[1,]))
+  df.2 = df.2[-1, ] # make first row name as the column names in the second half
   df.1 <- df.1[!sapply(df.1, function(x) all(x == ""))]
   M <- t(df.1);rownames(M) <- NULL;colnames(M) <- NULL # transpose matrix and remove row and colnames
-  DF <- as.data.frame(M);colnames(DF) <- as.character(unlist(DF[1,]));DF = DF[-1, ] # make first row name as the column names
+  DF <- as.data.frame(M);colnames(DF) <- as.character(unlist(DF[1,]));
+  DF = DF[-1, ] # make first row name as the column names
   n <- length(df.2$`Sample Site`) # number to repeat dates
   DF <- DF[rep(seq_len(nrow(DF)), each=n),] # repeat dates
   colnames(df.2)[which(colnames(df.2) =="Most Probable Number (MPN) of Enterococcus colonies per 100 ml")] = "MPN"
@@ -109,7 +112,7 @@ wq.df <- data.frame(site=character(),
                     Ent_top=numeric(),
                     Ent_bot=numeric(),
                     Tra=numeric())
-for (year in 2008:2016){
+for (year in 2008:2017){
   if (year == 2008){
     wq.tb <- read.xls(paste0(infolder, "WQ/DEP/dep_hs", year,".xls"), 
                       sheet = 1, skip=9, blank.lines.skip=TRUE, 
@@ -141,8 +144,8 @@ wq.df$month <- as.numeric(format(as.Date(wq.df$date), format = "%m"))
 wq.df$day <- as.POSIXlt(as.Date(wq.df$date))[["yday"]]+1
 sapply(wq.df, class)
 wq.df[,3:9] <- sapply(wq.df[,3:9],as.numeric)
-write.csv(wq.df, "harbor_water_quality.csv", row.names=FALSE)
-harbor_wq <- read.csv('harbor_water_quality.csv', stringsAsFactors = FALSE)
+write.csv(wq.df, "csv/harbor_water_quality.csv", row.names=FALSE)
+harbor_wq <- read.csv('csv/harbor_water_quality.csv', stringsAsFactors = FALSE)
 harbor_wq <- harbor_wq[!is.na(harbor_wq$year),]
 harbor_wq.td <- gather(harbor_wq, Key, Value, -site, -date, -year, -month, -day)
 harbor_wq.td$year <- as.character(harbor_wq.td$year)
@@ -153,9 +156,9 @@ colnames(coords)[1] <- "site"
 harbor_wq.df <- merge(coords, harbor_wq.td, by="site")
 harborwq.df <- merge(coords, harbor_wq, by="site")
 colnames(harborwq.df)[2:3] <- c("lat", "lon")
-write.csv(harborwq.df, "harbor_WQ_pts.csv", row.names=FALSE)
+write.csv(harborwq.df, "csv/harbor_WQ_pts.csv", row.names=FALSE)
 harbor_wq.shp <- df2spdf(3,2,"Long","Lat",harbor_wq.df)
-writeOGR(harbor_wq.shp, dsn=".", layer="harbor_water_quality", 
+writeOGR(harbor_wq.shp, dsn="./shapefile", layer="harbor_water_quality", 
          overwrite_layer = TRUE,driver = "ESRI Shapefile")
 
 # water trail association
@@ -165,11 +168,12 @@ loc.12 <- getloc("WTA", "NYCWTA-TRP 2012 Citizens' Water Quality Testing Sites",
 loc.13 <- getloc("WTA", "2013 Citizens' Water Quality Testing program--sampling sites and results", 2013, "Untitled layer")
 loc.15 <- getloc("WTA", "2015 Citizens Water Quality Testing Program", 2015, "Untitled layer")
 loc.16 <- getloc("WTA", "2016 Citizens Water Quality Testing Program", 2016, "Untitled layer")
-loc.all <- rbind(loc.11, loc.12, loc.13, loc.15, loc.16)
-write.csv(loc.all, "NYCWTA_sites_all.csv")
+loc.17 <- getloc("WTA", "2016 Citizens Water Quality Testing Program", 2017, "Untitled layer")
+loc.all <- rbind(loc.11, loc.12, loc.13, loc.15, loc.16, loc.17)
+write.csv(loc.all, "csv/NYCWTA_sites_all.csv")
 # remove duplicated points
 loc.pts <- loc.all[!duplicated(loc.all[,1:3]),]
-write.csv(loc.pts, "NYCWTA_sites.csv")
+write.csv(loc.pts, "csv/NYCWTA_sites.csv")
 # read yearly data
 # 2011
 file <- "EnteroPilotData2011"
@@ -201,7 +205,7 @@ df.11$year <- as.numeric(format(as.Date(df.11$date), format = "%Y"))
 df.11$month <- as.numeric(format(as.Date(df.11$date), format = "%m"))
 df.11$day <- as.POSIXlt(as.Date(df.11$date))[["yday"]]+1
 # 2012 - 2016
-file <- "CWQT All Sites from 2012-2016"
+file <- "CWQT All Sites from 2012-2017"
 dt.12 <- read.xls(paste0(infolder, "WQ/WTA/", file, ".xlsx"), 
                   sheet=1, skip=11, blank.lines.skip=TRUE, 
                   header = FALSE, stringsAsFactors=FALSE)
@@ -222,13 +226,18 @@ dt.16 <- read.xls(paste0(infolder, "WQ/WTA/", file, ".xlsx"),
                   sheet=5, skip=11, blank.lines.skip=TRUE, 
                   header = FALSE, stringsAsFactors=FALSE)
 df.16 <- clean.wta(dt.16)
-df.wta <- rbind(df.11,df.12,df.13,df.14,df.15,df.16)
+# 2017
+dt.17 <- read.xls(paste0(infolder, "WQ/WTA/", file, ".xlsx"), 
+                  sheet=6, skip=11, blank.lines.skip=TRUE, 
+                  header = FALSE, stringsAsFactors=FALSE)
+df.17 <- clean.wta(dt.17)
+df.wta <- rbind(df.11,df.12,df.13,df.14,df.15,df.16,df.17)
 df.wta.wq <- merge(df.wta, loc.pts, by="loc")
 df.wta.wq <- df.wta.wq[,-11]; colnames(df.wta.wq)[which(colnames(df.wta.wq)=="year.x")] <- "year"
-write.csv(df.wta, "NYCWTA_WQ.csv", row.names=FALSE)
-write.csv(df.wta.wq, "NYCWTA_WQ_pts.csv", row.names=FALSE) # with coordinate information
+write.csv(df.wta, "csv/NYCWTA_WQ.csv", row.names=FALSE)
+write.csv(df.wta.wq, "csv/NYCWTA_WQ_pts.csv", row.names=FALSE) # with coordinate information
 spdf.wta <- df2spdf(9,10,"lon","lat",df.wta.wq)
-writeOGR(spdf.wta, dsn=".", layer="NYCWTA_WQ", overwrite_layer = TRUE,driver = "ESRI Shapefile")
+writeOGR(spdf.wta, dsn="./shapefile", layer="NYCWTA_WQ", overwrite_layer = TRUE,driver = "ESRI Shapefile")
 
 # CFE/Save the sound
 # 2013
@@ -245,7 +254,7 @@ for (i in 1:n){
   df.all <- rbind(df.all, df)
   print(i)
 }
-write.csv(df.all, "CF_WQ_2013.csv", row.names=FALSE)
+write.csv(df.all, "csv/CF_WQ_2013.csv", row.names=FALSE)
 
 # 2014-1
 filename <- "Save the Sound Water Quality Data (c) 2014_1"
@@ -265,7 +274,7 @@ for (i in 1:n){
   df.all <- rbind(df.all, df)
   print(i)
 }
-write.csv(df.all, "CF_WQ_2014_1.csv", row.names=FALSE)
+write.csv(df.all, "csv/CF_WQ_2014_1.csv", row.names=FALSE)
 # 2014-2
 filename <- "Save the Sound Water Quality Data (c) 2014_2"
 file <- paste0(infolder, "WQ/CF/", filename, ".xlsx")
@@ -277,7 +286,7 @@ df.2 <- read.xls(file, sheet=2, skip=0, header = FALSE, stringsAsFactors=FALSE)
 colnames(df.2) <- c("SiteID", "SiteName", "Date", "Ent", "FC", 
                     "Pre0", "Pre1", "Pre2", "Pre3", "CumPre", "MCFU", "Pass", "Fail")
 df <- rbind(df.1, df.2)
-write.csv(df, "CF_WQ_2014_2.csv", row.names=FALSE)
+write.csv(df, "csv/CF_WQ_2014_2.csv", row.names=FALSE)
 
 # 2015, 2016, 2016 -2
 year <- "2015"  # change manually
@@ -285,7 +294,7 @@ filename <- paste0("Save the Sound Water Quality Data (c) ", year)
 file <- paste0(infolder, "WQ/CF/", filename, ".xlsx")
 n <- length(excel_sheets(file))
 df.all <- data.frame(matrix(ncol = 12, nrow = 0)) # skip if year = "2016 -2"
-colnames <- c("SiteID", "SiteName", "Date", "Ent", "MEnt",
+colnames <- c("SiteID", "SiteName","Town", "Date", "Time","Ent", "MEnt",
               "Pre0", "Pre1", "Pre2", "Pre3", "CumPre")
 colnames(df.all) <- colnames
 for (i in 1:n){
@@ -294,41 +303,39 @@ for (i in 1:n){
   df.all <- rbind(df.all, df)
   print(i)
 }
-write.csv(df.all, "CF_WQ_2015.csv", row.names=FALSE) # change manually
+write.csv(df.all, "csv/CF_WQ_2015.csv", row.names=FALSE) # change manually
  
 # 2017
 df.17 <- read.csv(paste0(infolder, "WQ/CF/2017 STS Entero Data EXCEL Release.csv"))
 df.17 <- df.17[, -which(names(df.17) %in% c("State","X"))]
 colnames(df.17) <- colnames
-write.csv(df.17, "CF_WQ_2017.csv", row.names=FALSE)
+write.csv(df.17, "csv/CF_WQ_2017.csv", row.names=FALSE)
 
 # combine years 2014 - 2017
-cf.14.1 <- read.csv("CF_WQ_2014_1.csv", stringsAsFactors=FALSE)
+cf.14.1 <- read.csv("csv/CF_WQ_2014_1.csv", stringsAsFactors=FALSE)
 cf.14.1 <- cf.14.1[,1:11];cf.14.1 <- cf.14.1[,-5]
-cf.14.1 <- cf.14.1[colnames]
-cf.14.2 <- read.csv("CF_WQ_2014_2.csv", stringsAsFactors=FALSE)
+cf.14.2 <- read.csv("csv/CF_WQ_2014_2.csv", stringsAsFactors=FALSE)
 cf.14.2 <- cf.14.2[,1:11];cf.14.2 <- cf.14.2[,-5]
 colnames(cf.14.2)[which(colnames(cf.14.2)=="MCFU")] <- "MEnt"
-cf.14.2 <- cf.14.2[colnames]
-cf.15 <- read.csv("CF_WQ_2015.csv", stringsAsFactors=FALSE)
-cf.16 <- read.csv("CF_WQ_2016.csv", stringsAsFactors=FALSE)
-cf.17 <- read.csv("CF_WQ_2017.csv", stringsAsFactors=FALSE)
+cf.15 <- read.csv("csv/CF_WQ_2015.csv", stringsAsFactors=FALSE)
+cf.16 <- read.csv("csv/CF_WQ_2016.csv", stringsAsFactors=FALSE)
+cf.17 <- read.csv("csv/CF_WQ_2017.csv", stringsAsFactors=FALSE)
 cf <- rbind(cf.15, cf.16, cf.17)
 cf <- cf[,-3]; cf <- cf[,-4]
 cf <- rbind(cf.14.1, cf.14.2, cf)
-write.csv(cf, "CF_WQ.csv", row.names=FALSE)
+write.csv(cf, "csv/CF_WQ.csv", row.names=FALSE)
 
 # get locations for CF dataset
 site.13 <- getloc("CF","Summer 2013 Sampling Sites",2013,"Sites")
-write.csv(site.13, "CF_WQ_Sites_2013.csv", row.names=FALSE)
+write.csv(site.13, "csv/CF_WQ_Sites_2013.csv", row.names=FALSE)
 site.14 <- getloc("CF","Summer 2014 Sampling Sites",2014,"Sites")
-write.csv(site.14, "CF_WQ_Sites_2014.csv", row.names=FALSE)
+write.csv(site.14, "csv/CF_WQ_Sites_2014.csv", row.names=FALSE)
 site.15 <- getloc("CF","Season Summary 2015",2015,"STS 2015 Dynamic Map.xlsx")
-write.csv(site.15, "CF_WQ_Sites_2015.csv", row.names=FALSE)
+write.csv(site.15, "csv/CF_WQ_Sites_2015.csv", row.names=FALSE)
 site.16 <- getloc("CF","Season Summary 2016",2016,"STS 2016 Google Map.xlsx")
-write.csv(site.16, "CF_WQ_Sites_2016.csv", row.names=FALSE)
+write.csv(site.16, "csv/CF_WQ_Sites_2016.csv", row.names=FALSE)
 site.17 <- getloc("CF","Season Summary 2017",2017,"STS 2017 Google Map.xlsx")
-write.csv(site.17, "CF_WQ_Sites_2017.csv", row.names=FALSE)
+write.csv(site.17, "csv/CF_WQ_Sites_2017.csv", row.names=FALSE)
 
 # reorganize sites in 2015
 site.15.1 <- merge(cf.15, site.15, by="SiteName")
@@ -338,22 +345,22 @@ site.17.1 <- site.17[,c("SiteID","lon","lat","year")]
 cf.sites <- rbind(site.13, site.14, site.15.2, site.16.1, site.17.1)
 # remove duplicated points
 cf.sites <- cf.sites[!duplicated(cf.sites[,1:3]),]
-write.csv(cf.sites, "CF_WQ_Sites_All.csv", row.names=FALSE)
+write.csv(cf.sites, "csv/CF_WQ_Sites_All.csv", row.names=FALSE)
 
 # match up coordinates
 cf.pts <- merge(cf, cf.sites, by="SiteID")
 cf.pts$month <- as.numeric(format(as.Date(as.character(cf.pts$Date),"%m/%d/%Y"), format = "%m"))
 cf.pts$day <- as.POSIXlt(as.Date(as.character(cf.pts$Date),"%m/%d/%Y"))[["yday"]]+1
-write.csv(cf.pts, "CF_WQ_pts.csv", row.names=FALSE) # with coordinates
+write.csv(cf.pts, "csv/CF_WQ_pts.csv", row.names=FALSE) # with coordinates
 spdf.cf <- df2spdf(11,12,"lon","lat",cf.pts)
-writeOGR(spdf.cf, dsn=".", layer="CF_WQ", overwrite_layer = TRUE,driver = "ESRI Shapefile")
+writeOGR(spdf.cf, dsn="./shapefile", layer="CF_WQ", overwrite_layer = TRUE, driver = "ESRI Shapefile")
 
 # WQ Portal
 wqp.sites <- read.csv(paste0(infolder, "WQ/Portal/station.csv"), stringsAsFactors=FALSE)
 wqp.res <- read.csv(paste0(infolder, "WQ/Portal/result.csv"), stringsAsFactors=FALSE)
 # subset data
 wqp.df <- wqp.res %>%
-  select("MonitoringLocationIdentifier", "ActivityStartDate", "ActivityStartTime.Time", 
+  dplyr::select("MonitoringLocationIdentifier", "ActivityStartDate", "ActivityStartTime.Time", 
          "CharacteristicName", "ResultMeasureValue", "ResultMeasure.MeasureUnitCode") %>%
   subset(CharacteristicName %in% c("Dissolved oxygen (DO)",
                                    "Enterococcus",
@@ -364,44 +371,46 @@ wqp.df <- wqp.res %>%
     month = as.numeric(format(as.Date(ActivityStartDate), format = "%m")),
     day = as.POSIXlt(as.Date(ActivityStartDate))[["yday"]]+1,
     ID = c(1:length(ActivityStartDate)))
+
   wqp.df.1 <- wqp.df %>%
-    select("ID", "CharacteristicName", "ResultMeasureValue") %>% dcast(ID~CharacteristicName,fill=0) %>%
+    dplyr::select("ID", "CharacteristicName", "ResultMeasureValue") %>% dcast(ID~CharacteristicName,fill=0) %>%
     merge(wqp.df[,-which(names(wqp.df) %in% c("CharacteristicName", "ResultMeasureValue"))],by="ID") %>%
     merge(wqp.sites[,which(names(wqp.sites) %in% c("MonitoringLocationIdentifier",
                                                    "LatitudeMeasure",
                                                    "LongitudeMeasure"))], 
           by="MonitoringLocationIdentifier") %>%
-    select(-one_of(c("ID")))
+    dplyr::select(-one_of(c("ID")))
+  
   colnames(wqp.df.1)[1:8] <- c("Id","DO","Ent","FC","T","Date","Time","Unit")
   colnames(wqp.df.1)[12:13] <- c("lat","lon")
   head(wqp.df.1) # final check 
-  write.csv(wqp.df.1, "Portal_WQ_pts.csv", row.names=FALSE)
+  write.csv(wqp.df.1, "csv/Portal_WQ_pts.csv", row.names=FALSE)
   spdf.wqp <- df2spdf(13,12,"lon","lat",wqp.df.1)
-  writeOGR(spdf.wqp, dsn=".", layer="Portal_WQ", overwrite_layer = TRUE,driver = "ESRI Shapefile")
+  writeOGR(spdf.wqp, dsn="./shapefile", layer="Portal_WQ", overwrite_layer = TRUE,driver = "ESRI Shapefile")
   
-##################################### Point Pattern Analysis #############################################
 # get an uniform data frame for water quality dta from different sources
 # (harbor water, water trail association, CFE/Save the sound, WQ Portal)
 colnames.com <- c("site", "lon", "lat", "ent", "year", "month", "day")
-harbor_wq <- read.csv('harbor_WQ_pts.csv', stringsAsFactors = FALSE)
+harbor_wq <- read.csv('csv/harbor_WQ_pts.csv', stringsAsFactors = FALSE)
 harbor_wq <- harbor_wq[c("site", "lon", "lat", "Ent_top", "year", "month", "day")]
 colnames(harbor_wq) <- colnames.com
-NYCWTA_wq <- read.csv('NYCWTA_WQ_pts.csv', stringsAsFactors = FALSE)
+NYCWTA_wq <- read.csv('csv/NYCWTA_WQ_pts.csv', stringsAsFactors = FALSE)
 NYCWTA_wq <- NYCWTA_wq[c("loc", "lon", "lat", "MPN", "year", "month", "day")]
 colnames(NYCWTA_wq) <- colnames.com
-cf_wq <- read.csv('CF_WQ_pts.csv', stringsAsFactors = FALSE) 
+cf_wq <- read.csv('csv/CF_WQ_pts.csv', stringsAsFactors = FALSE) 
 cf_wq <- cf_wq[c("SiteName", "lon", "lat", "Ent", "year", "month", "day")]
 colnames(cf_wq) <- colnames.com
-Portal_wq <- read.csv('Portal_WQ_pts.csv', stringsAsFactors = FALSE)
+Portal_wq <- read.csv('csv/Portal_WQ_pts.csv', stringsAsFactors = FALSE)
 Portal_wq <- Portal_wq[c("Id", "lon", "lat", "Ent", "year", "month", "day")]
 colnames(Portal_wq) <- colnames.com
 all_wq_pts <- rbind(harbor_wq, NYCWTA_wq, cf_wq, Portal_wq)
-write.csv(all_wq_pts, "wq_pts_all.csv", row.names=FALSE)
-all_wq_pts <- read.csv("wq_pts_all.csv", stringsAsFactors = FALSE)
+write.csv(all_wq_pts, "csv/wq_pts_all.csv", row.names=FALSE)
+all_wq_pts <- read.csv("csv/wq_pts_all.csv", stringsAsFactors = FALSE)
 wq_pts <- all_wq_pts[!duplicated(all_wq_pts[,2:3]),]
 
+##################################### Point Pattern Analysis #############################################
 # how many sampling sites?
-habor <- readOGR(".", "harbor_water_quality", stringsAsFactors = FALSE)
+habor <- readOGR("./shapefile", "harbor_water_quality", stringsAsFactors = FALSE)
 # check duplicates
 coordinates(wq_pts) =~lon+lat
 proj4string(wq_pts) <- lonlat
@@ -416,7 +425,7 @@ plot(nyadwi)
 plot(tract, bord="red", add=T)
 inside <- !is.na(over(wq_pts_proj, as(nyadwi, "SpatialPolygons")))
 wq_pts_in <- wq_pts_proj[inside, ]
-writeOGR(wq_pts_in, dsn=".", layer="wq_pts_in", overwrite_layer = TRUE,driver = "ESRI Shapefile")
+writeOGR(wq_pts_in, dsn="./shapefile", layer="wq_pts_in", overwrite_layer = TRUE,driver = "ESRI Shapefile")
 plot(wq_pts_in, col="blue", add=T)
 wq.df <- as.data.frame(wq_pts_in)
 window = as.owin(nyadwi)

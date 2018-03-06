@@ -5,8 +5,8 @@ account: dongmeic
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 290736
-bundleId: 1246355
+bundleId: 1254441
 url: https://dongmeic.shinyapps.io/WQ_plots/
-when: 1519882428.70063
+when: 1520314567.29594
 asMultiple: FALSE
 asStatic: FALSE
