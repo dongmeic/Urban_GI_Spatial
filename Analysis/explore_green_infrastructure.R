@@ -105,7 +105,7 @@ length(names(tGI_1));length(names(tGI_2))
 
 # reorganize green infrastructure data
 bluebelt <- c("Bluebelt","Constructed Wetland")
-raingardern <- c("Rain Garden","ROW Rain Garden", "ROWRG")
+raingarden <- c("Rain Garden","ROW Rain Garden", "ROWRG")
 bioswale <- c("ROWB", "ROWEB","Bioswale")
 greenroof <- c("Combined Blue/Green Roof", "Green Roof","Rooftop Farm")
 permeable <- c("Permeable Pavers", "Pervious Concrete","Porous Asphalt","Porous Concrete",
@@ -120,7 +120,7 @@ greenstreet <- c("ROWGS", "ROWSGS","SGS", "SGS (old)")
 rainbarrel <- c("Rainwater Harvesting","Cistern","Rain Barrel","Rainwater Reuse System")
 
 gi_pts$GItypes <- ifelse(gi_pts$GI_Type %in% bluebelt, "Bluebelts", 
-                         ifelse(gi_pts$GI_Type %in% raingardern, "Rain garderns",
+                         ifelse(gi_pts$GI_Type %in% raingarden, "Rain gardens",
                                 ifelse(gi_pts$GI_Type %in% bioswale, "Bioswales",
                                       ifelse(gi_pts$GI_Type %in% greenroof, "Green roofs",
                                              ifelse(gi_pts$GI_Type %in% permeable, "Permeable",
@@ -128,7 +128,7 @@ gi_pts$GItypes <- ifelse(gi_pts$GI_Type %in% bluebelt, "Bluebelts",
                                                            ifelse(gi_pts$GI_Type %in% greenstreet, "Green streets", 
                                                                   ifelse(gi_pts$GI_Type %in% rainbarrel, "Rain barrels","Others"))))))))
 gi_web$GItypes <- ifelse(gi_web$GI_TECHNOL %in% bluebelt, "Bluebelts", 
-                         ifelse(gi_web$GI_TECHNOL %in% raingardern, "Rain garderns",
+                         ifelse(gi_web$GI_TECHNOL %in% raingarden, "Rain gardens",
                                 ifelse(gi_web$GI_TECHNOL %in% bioswale, "Bioswales",
                                        ifelse(gi_web$GI_TECHNOL %in% greenroof, "Green roofs",
                                               ifelse(gi_web$GI_TECHNOL %in% permeable, "Permeable",
@@ -208,7 +208,7 @@ ggsave(paste0("figure/GI_year_borough.png"), width=6, height=5, units="in")
 
 # map all GI types
 type.names <- c("Bioswales", "Bluebelts","Detention","Green roofs",
-                "Green streets","Permeable","Rain barrels", "Rain garderns")
+                "Green streets","Permeable","Rain barrels", "Rain gardens")
 n <- length(type.names)
 for (i in 1:n){
   png(paste0("figure/map_",type.names[i],".png"), width=8, height=8, units="in", res=300)
