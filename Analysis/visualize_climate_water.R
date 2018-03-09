@@ -53,7 +53,7 @@ get.int <- function(x,y){
     cat("oops, you need to select one of \"y\", \"m\", \"d\", and \"h\" with quotes!")
   }
 }
-# # get storm events data in the NYC
+# # get storm events data in NYC
 # ndf <- data.frame(matrix(ncol = 58, nrow = 0))
 # storm.events <- read.csv(paste0(infolder,"CLM/Stormdata_1996.csv"))
 # colnames(ndf) <- names(storm.events)
@@ -82,8 +82,8 @@ get.int <- function(x,y){
 # # write output
 # write.csv(ndf,"stormdata_nyc.csv")
 
-# read storm events data in the NYC
-storms <- read.csv("stormdata_nyc.csv", stringsAsFactors = FALSE)
+# read storm events data in NYC
+storms <- read.csv("CSV/stormdata_nyc.csv", stringsAsFactors = FALSE)
 str(storms)
 storms$MONTH <- as.numeric(t(sapply(storms$BEGIN_YEARMONTH, function(x) substring(x, first=c(1,5), last=c(4,6))))[,2])
 # seasonal variation in storm events
@@ -97,6 +97,8 @@ stms.spdf <- df2spdf(47,46,"BEGIN_LON","BEGIN_LAT",storms)
 plot(stms.spdf, pch=19, col="blue", cex=0.8)
 plot(bound, bord="dark gray", add=T)
 title("Spatial distribution of storm events over years (1996 - 2013, NYC)")
+writeOGR(stms.spdf, dsn="./shapefile", layer="storm_events", 
+         overwrite_layer = TRUE,driver = "ESRI Shapefile")
 
 # # check the locations and types of the storm events over years
 # for (year in 1996:2013){
