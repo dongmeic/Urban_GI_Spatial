@@ -49,26 +49,16 @@ add.scale <- function(){
   GISTools::map.scale(1040000,140000,19685.083,"km",3,2,sfcol='brown')
 } #19685 feet 0.5 inches equals to 6 km
 
-mapping <- function(spdf, color, var, nclr, legend.title, main.title, is.pts){
-  # color <- 'Blues'
-  # plotvar <- nyccwi$ent
-  # nclr <- 8
+mapping <- function(spdf, color, var, nclr, legend.title, main.title){
   plotvar <- as.numeric(spdf@data[,var])
   plotclr <- brewer.pal(nclr,color)
   class <- classIntervals(plotvar, nclr, style="jenks", dataPrecision=1)
   colcode <- findColours(class, plotclr)
   plot(nyccwi, col=colcode)
-  if (is.pts == "yes"){
-    plot(wq.pts.in, col='red', add=T, pch=19)
-  }
-  # legend.title <- "Enterococci"
-  # main.title <- "Water quality in New York City"
   title(main.title,cex.main=1.5)
   legend(925000,238000, legend=names(attr(colcode, "table")),
          fill=attr(colcode, "palette"), cex=1.2, title=legend.title, bty="n")
 }
-
-
 
 # global settings
 setwd("/nfs/urbangi-data/spatial_data/output")
@@ -79,7 +69,8 @@ crs <- CRS("+proj=lcc +lat_1=40.66666666666666 +lat_2=41.03333333333333
 lonlat <- CRS("+proj=longlat +datum=NAD83")
 
 # input data
-wq.df <- read.csv("wq_pts_all.csv", stringsAsFactors = FALSE)
+#hwq_pts <- readOGR(dsn="./shapefile", layer="hwq_pts_in", stringsAsFactors = FALSE)
+wq.df <- read.csv("csv/wq_pts_all.csv", stringsAsFactors = FALSE)
 # remove the less symbol
 gsub("<", "", wq.df)
 wq.df$ent <- as.numeric(wq.df$ent)
@@ -87,10 +78,8 @@ coordinates(wq.df) <- ~lon+lat
 proj4string(wq.df) <- lonlat
 wq.spdf <- spTransform(wq.df, crs)
 wq.spdf.u <- remove.duplicates(wq.spdf)
-writeOGR(wq.spdf.u, dsn=".", layer="wq_pts_all", overwrite_layer = TRUE,driver = "ESRI Shapefile")
-wq.pts.in <- readOGR(".", layer="wq_pts_in", stringsAsFactors = FALSE)
 
-# sewershed 
+sewershed
 sewershed <- readOGR(dsn = paste0(infolder, "CSO"), layer ="Sewershed", stringsAsFactors = FALSE)
 #reference: https://gis.stackexchange.com/questions/163445/r-solution-for-topologyexception-input-geom-1-is-invalid-self-intersection-er
 #sewershed <- gSimplify(sewershed, tol = 0.00001)
@@ -115,16 +104,24 @@ points(wq.spdf, pch=20, col='blue')
 # head(pts.poly@data)
 ## use over function instead
 pts.poly <- over(wq.spdf, nyccwi[,"CounDist"])
+gi.spdf <- readOGR(dsn = "./shapefile", layer ="gi_pts_in", stringsAsFactors = FALSE)
+gi.pts.poly <- over(gi.spdf, nyccwi[,"CounDist"])
 wq.spdf$CounDist <- pts.poly$CounDist
+gi.spdf$CounDist <- gi.pts.poly$CounDist
 wq.spdf$pids <- 1:nrow(wq.spdf)
+gi.spdf$pids <- 1:nrow(gi.spdf)
 # aggregate data by polygon
 cpts <- aggregate(pids ~ CounDist, data = wq.spdf@data, FUN = function(x){y <- length(x); return(y)})
 colnames(cpts)[2] <- "cpts"
+gicpts <- aggregate(pids ~ CounDist, data = gi.spdf@data, FUN = function(x){y <- length(x); return(y)})
+colnames(gicpts)[2] <- "gicpts"
 ment <- aggregate(ent ~ CounDist, data = wq.spdf@data, FUN = mean)
 nyccwi@data <- merge(nyccwi@data, cpts, by="CounDist", all=T)
 nyccwi@data <- merge(nyccwi@data, ment, by="CounDist", all=T)
+nyccwi@data <- merge(nyccwi@data, gicpts, by="CounDist", all=T)
 #write.csv(nyccwi@data, "wq_data_cc.csv", row.names=FALSE)
 head(nyccwi@data)
+nyccwi@data$gidens <- nyccwi@data$gicpts/sum(nyccwi@data$gicpts)*1000
 
 nyccwi.nb <- poly2nb(nyccwi)
 nyccwi.nb
@@ -138,18 +135,25 @@ plot(nyccwi.nb2, coordinates(nyccwi), add=TRUE, col='yellow')
 
 nyccwi.lw <- nb2listw(nyccwi.nb2)
 
-ent.lagged.means <- lag.listw(nyccwi.lw, nyccwi$ent, NAOK=TRUE)
+gidens.lagged.means <- lag.listw(nyccwi.lw, nyccwi$gidens, NAOK=TRUE)
 # replace NAs with zeros?
-nyccwi$ent[is.na(nyccwi$ent)] <- 0
-nyccwi$ent[nyccwi$ent==0] <- NA
+#nyccwi$ent[is.na(nyccwi$ent)] <- 0
+#nyccwi$ent[nyccwi$ent==0] <- NA
 shades <- auto.shading(nyccwi$ent, n=6, cols = brewer.pal(5, 'Blues'))
 choropleth(nyccwi, nyccwi$ent, shades)
-choropleth(nyccwi,ent.lagged.means,shades)
+
+shades <- auto.shading(nyccwi$gidens, n=6, cols = brewer.pal(5, 'Blues'))
+choropleth(nyccwi, nyccwi$gidens, shades)
 
 plot(nyccwi$ent, ent.lagged.means, asp=1, xlim=range(na.omit(nyccwi$ent)), ylim=range(na.omit(nyccwi$ent)))
 abline(a=0,b=1)
 abline(v=mean(na.omit(nyccwi$ent)),lty=2)
 abline(h=mean(na.omit(ent.lagged.means)),lty=2)
+
+plot(nyccwi$gidens, gidens.lagged.means, asp=1, xlim=range(na.omit(nyccwi$gidens)), ylim=range(na.omit(nyccwi$gidens)))
+abline(a=0,b=1)
+abline(v=mean(na.omit(nyccwi$gidens)),lty=2)
+abline(h=mean(na.omit(gidens.lagged.means)),lty=2)
 
 moran.test(nyccwi$ent, nyccwi.lw, na.action=na.exclude, zero.policy = TRUE)
 # Moran I test under randomisation
@@ -164,13 +168,24 @@ moran.test(nyccwi$ent, nyccwi.lw, na.action=na.exclude, zero.policy = TRUE)
 #   Moran I statistic       Expectation          Variance 
 # -0.06538677       -0.03125000        0.01229916 
 
+moran.test(nyccwi$gidens, nyccwi.lw, na.action=na.exclude, zero.policy = TRUE)
+
 # LISA
 nyccwi.lI <- localmoran(nyccwi$ent, nyccwi.lw, na.action=na.exclude, zero.policy = TRUE)
+nyccwi.lI <- localmoran(nyccwi$gidens, nyccwi.lw, na.action=na.exclude, zero.policy = TRUE)
 
 # mapping water quality
-png(paste("water_quality.png", sep=""), width=9, height=8, units="in", res=300)
+png(paste("figure/water_quality.png", sep=""), width=9, height=8, units="in", res=300)
 par(xpd=FALSE,mfrow=c(1,1),mar=c(0.5,0.5,2.5,0.5))
-mapping(nyccwi, 'Blues', "ent", 8, "Enterococci", "Water quality in New York City","yes")
+mapping(nyccwi, 'Blues', "ent", 8, "Enterococci", "Water quality in New York City")
+add.northarrow()
+add.scale()
+dev.off()
+
+# mapping GI density
+png(paste("figure/GI_density.png", sep=""), width=9, height=8, units="in", res=300)
+par(xpd=FALSE,mfrow=c(1,1),mar=c(0.5,0.5,2.5,0.5))
+mapping(nyccwi, 'Blues', "gidens", 8, expression("GI density ("*10^-3*")"), "Green infrastructure density in New York City")
 add.northarrow()
 add.scale()
 dev.off()
@@ -179,8 +194,8 @@ dev.off()
 nyccwi_lI <- nyccwi
 nyccwi_lI$lisa <- nyccwi.lI[,1]
 nyccwi_lI$pvalue <- nyccwi.lI[,5]
-png(paste("local_moran_I_pvalue.png", sep=""), width=10, height=6, units="in", res=300)
+png(paste("figure/local_moran_I_pvalue_gi.png", sep=""), width=10, height=6, units="in", res=300)
 par(xpd=FALSE,mfrow=c(1,2),mar=c(0.5,0.5,2.5,0.5))
-mapping(nyccwi_lI, 'PRGn', "lisa", 5, "Local Moran's I", "Local Moran's I","no")
-mapping(nyccwi_lI, 'PuRd', "pvalue", 5, "Local p-value", "Local p-value","no")
+mapping(nyccwi_lI, 'PRGn', "lisa", 5, "Local Moran's I", "Local Moran's I")
+mapping(nyccwi_lI, 'PuRd', "pvalue", 5, "Local p-value", "Local p-value")
 dev.off()

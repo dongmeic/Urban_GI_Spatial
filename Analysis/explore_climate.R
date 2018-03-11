@@ -13,12 +13,12 @@ setwd("/nfs/urbangi-data/spatial_data/output")
 infolder <- "/nfs/urbangi-data/spatial_data/"
 
 wbdhu12 <- readOGR(dsn = paste0(infolder, "WBDHU"), layer = "wbdhu_12", stringsAsFactors = FALSE)
-wbdhu12 <- spTransform(wbdhu12, crs)
-bound <- readOGR(dsn = paste0(infolder, "BD"), layer = "nyad_dis")
-lonlat <- CRS("+proj=longlat +datum=NAD83")
 crs <- CRS("+proj=lcc +lat_1=40.66666666666666 +lat_2=41.03333333333333
            +lat_0=40.16666666666666 +lon_0=-74 +x_0=300000 +y_0=0 +datum=NAD83
            +units=us-ft +no_defs +ellps=GRS80 +towgs84=0,0,0")
+wbdhu12 <- spTransform(wbdhu12, crs)
+bound <- readOGR(dsn = paste0(infolder, "BD"), layer = "nyad_dis")
+lonlat <- CRS("+proj=longlat +datum=NAD83")
 proj4string(bound) <- crs
 month.colors <- c('#a6cee3','#1f78b4','#b2df8a','#33a02c',
                   '#fb9a99','#e31a1c','#fdbf6f','#ff7f00',
@@ -194,6 +194,33 @@ clim$Year <- ymdt$year + 1900
 clim$Month <- ymdt$mon + 1
 clim$DOY <- ymdt$yday + 1
 names(clim)
+
+pts <- as.data.frame(rbind(c(40.6386, -73.7622),c(40.8656, -72.8643)))
+pts$Station <- c("USW00094789", "USC00308721")
+pts$Name <- c("JFK INTERNATIONAL AIRPORT", "NY US UPTON COOP NWSFO NEW YORK")
+names(pts) <- c("Latitude","Longitude")
+locs <- df2spdf(2,1,"Longitude", "Latitude", pts)
+GIsites <- readOGR(dsn = "./shapefile", layer = "GIsites_all", stringsAsFactors = FALSE)
+wq_pts <- readOGR(dsn = "./shapefile", layer = "dep_wq_sampling_sites", stringsAsFactors = FALSE)
+
+png(paste0("figure/clim_monitoring_pt.png"), width=8, height=8, units="in", res=300)
+plot(bound, bord="white")
+plot(wbdhu12, add=T)
+plot(bound, bord="grey58", add=T)
+plot(locs, pch=16, cex=1.5, col="red", add=T)
+plot(GIsites, pch=16, cex=0.5, col=rgb(0,0.8,0,0.8), add=T)
+plot(wq_pts, pch=20, col=rgb(0,0,0.8,0.6), add=T)
+pointLabel(locs$Longitude, locs$Latitude, locs$Name, cex=1.2, col="red", offset = 2)
+text(940000, 260000, cex=1.4, "Climate monitoring location")
+legend(920000, 240000, bty="n", pch=c(16,20,16), 
+       col=c(rgb(0,0.8,0,0.8),rgb(0,0,0.8,0.6),"red"), 
+       pt.cex=c(0.5,1,1.5),
+       cex = 1.2,
+       legend=c("GI sites","WQ sites","CLM site"))
+legend(915000, 215000, bty="n",lty = 1, col=c("black", "grey58"),
+       legend = c("WBD HU12", "NYC"))
+dev.off()
+
 
 clim <- clim[clim$STATION == "USC00308721",]
 

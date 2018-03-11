@@ -9,26 +9,46 @@ library(grDevices)
 
 setwd("/nfs/urbangi-data/spatial_data/output")
 infolder <- "/nfs/urbangi-data/spatial_data/"
-#nyc.shp <- st_read(paste0(infolder, "BD/nyc_bound.shp"), stringsAsFactors = FALSE)
-gi.shp <- st_read(paste0(infolder, "GI/DEP_GREEN_INFRASTRUCTURE.shp"), stringsAsFactors = FALSE)
+
+wbdhu12 <- readOGR(dsn = paste0(infolder, "WBDHU"), layer = "wbdhu_12", stringsAsFactors = FALSE)
+crs <- CRS("+proj=lcc +lat_1=40.66666666666666 +lat_2=41.03333333333333
+           +lat_0=40.16666666666666 +lon_0=-74 +x_0=300000 +y_0=0 +datum=NAD83
+           +units=us-ft +no_defs +ellps=GRS80 +towgs84=0,0,0")
+wbdhu12 <- spTransform(wbdhu12, crs)
+bound <- readOGR(dsn = paste0(infolder, "BD"), layer = "nyad_dis")
+lonlat <- CRS("+proj=longlat +datum=NAD83")
+bound <- spTransform(bound, crs)
+
+nyc.shp <- st_read(paste0(infolder, "BD/nyc_bound.shp"), stringsAsFactors = FALSE)
+#gi.shp <- st_read(paste0(infolder, "GI/DEP_GREEN_INFRASTRUCTURE.shp"), stringsAsFactors = FALSE)
+gi.shp <- st_read(dsn="./shapefile", layer="GIsites_all", stringsAsFactors = FALSE)
 #nyc.shp <- st_transform(nyc.shp, crs = st_crs(gi.shp)$proj4string)
 dem <- raster(paste0(infolder,"DEM/dem_mosaic.tif"))
 lc2001 <- raster(paste0(infolder,"LC/nlcd_2001_nycad.tif"))
 lc2011 <- raster(paste0(infolder,"LC/nlcd_2011_nycad.tif"))
-physhs.shp <- st_read("house_characteristics.shp", stringsAsFactors = FALSE)
-eduatt.shp <- st_read("education.shp", stringsAsFactors = FALSE)
-income.shp <- st_read("income.shp", stringsAsFactors = FALSE)
-race.shp <- st_read("race.shp", stringsAsFactors = FALSE)
-agesex.shp <- st_read("age_sex.shp", stringsAsFactors = FALSE)
-disabi.shp <- st_read("disability.shp", stringsAsFactors = FALSE)
-wq.shp <- st_read("harbor_water_quality.shp", stringsAsFactors = FALSE)
-map <- tm_shape(gi.shp)+tm_symbols(size=1, col="GI_TECHNOL") +
-  tm_layout(legend.outside = TRUE, legend.outside.position = "bottom", legend.stack = "horizontal")
+physhs.shp <- st_read(dsn="./shapefile", layer="house_characteristics", stringsAsFactors = FALSE)
+eduatt.shp <- st_read(dsn="./shapefile", layer="education", stringsAsFactors = FALSE)
+income.shp <- st_read(dsn="./shapefile", layer="income", stringsAsFactors = FALSE)
+race.shp <- st_read(dsn="./shapefile", layer="race", stringsAsFactors = FALSE)
+agesex.shp <- st_read(dsn="./shapefile", layer="age_sex", stringsAsFactors = FALSE)
+disabi.shp <- st_read(dsn="./shapefile", layer="disability", stringsAsFactors = FALSE)
+wq.shp <- st_read(dsn="./shapefile", layer="harbor_water_quality", stringsAsFactors = FALSE)
+
+map <- tm_shape(gi.shp)+tm_symbols(size=0.8, col="GItypes", alpha =0.8) + 
+  tm_layout(legend.position = c("left","top"), legend.stack = "horizontal")
 physhs.shp$old <- as.numeric(physhs.shp$old)
-map <- qtm(physhs.shp, fill = "old", format="World", style="col_blind")
+
+png(paste0("figure/old_housing_units.png"), width=9, height=8, units="in", res=300)
+qtm(physhs.shp, fill = "old", format="World", fill.title="", style="col_blind")+
+  tm_legend("Old housing units", legend.position = c("left", "top"), legend.text.size = 1.2,
+            main.title = "Occupied housing units (1939 or earlier)", legend.title.size = 1.2, 
+            main.title.position = "right")
+dev.off()
+
 getJenksBreaks(physhs.shp$pctold, 6)
 map <- tm_shape(physhs.shp) +
-  tm_fill("old", title = "Occupied housing units (1939 or earlier)", style = "fixed",
+  tm_fill("old", title="", style = "fixed",
+          title.size = 1.2,
           breaks = c(0.0, 18.0, 35.1, 51.1, 67.2, 100.0),
           textNA = "Missing",
           colorNA = "white",   # <-------- color for NA values
@@ -39,10 +59,14 @@ map <- tm_shape(physhs.shp) +
             "#43a2ca",
             "#0868ac")) +
   tm_borders() +
-  tm_layout("Thematic maps for the socioeconomic status in the NYC",
+  tm_layout("Occupied housing units (1939 or earlier)",
             legend.title.size = 1.2,
-            legend.text.size = 0.6,
+            legend.text.size = 1.2,
             legend.position = c("left","top"))
+png(paste0("figure/old_housing_units_1.png"), width=9, height=8, units="in", res=300)
+par(xpd=FALSE,mfrow=c(1,1),mar=c(0.5,0.5,0.5,0.5))
+map
+dev.off()
 
 getJenksBreaks(dischar.df$dis.sta, 6)
 map <- tm_shape(disabi.shp) +

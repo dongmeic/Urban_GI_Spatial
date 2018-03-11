@@ -29,18 +29,18 @@ crs <- CRS("+proj=lcc +lat_1=40.66666666666666 +lat_2=41.03333333333333
            +units=us-ft +no_defs +ellps=GRS80 +towgs84=0,0,0")
 
 # data
-gi <- readOGR(dsn = paste0(infolder, "GI"), layer ="GI_assets_public", stringsAsFactors = FALSE)
+gi <- readOGR(dsn="./shapefile", layer="GIsites_all", stringsAsFactors=FALSE)
 gi <- spTransform(gi, crs)
 head(gi)
 gi.df <- as.data.frame(gi)
-write.csv(gi.df, "gi_pts.csv", row.names=FALSE)
+write.csv(gi.df, "csv/gi_pts.csv", row.names=FALSE)
 nyadwi <- readOGR(dsn = paste0(infolder, "BD"), layer ="nyadwi_dis", stringsAsFactors = FALSE)
 inside <- !is.na(over(gi, as(nyadwi, "SpatialPolygons")))
 gi_pts_in <- gi[inside, ]
-writeOGR(gi_pts_in, dsn=".", layer="gi_pts_in", overwrite_layer = TRUE,driver = "ESRI Shapefile")
+writeOGR(gi_pts_in, dsn="./shapefile", layer="gi_pts_in", overwrite_layer = TRUE,driver = "ESRI Shapefile")
 attach(gi.df)
 ##coordinates: set spatial coordinates to create a Spatial object, or retrieve spatial coordinates from a Spatial object
-coordinates(gi.df) =~X_Coordina+Y_Coordina
+coordinates(gi.df) =~X+Y
 ##zerodist: find point pairs with equal spatial coordinates
 zero=zerodist(gi.df)
 length(unique(zero[,1]))

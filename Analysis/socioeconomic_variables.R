@@ -79,7 +79,7 @@ quick.map <- function(spdf,var,legend.title,main.title,color,outname,style) {
     plotclr <- brewer.pal(nclr,color)
     class <- classIntervals(plotvar, nclr, style="jenks", dataPrecision=1)
     colcode <- findColours(class, plotclr)
-    png(paste(outname,".png", sep=""), width=9, height=8, units="in", res=300)
+    png(paste("figure/",outname,".png", sep=""), width=9, height=8, units="in", res=300)
     par(xpd=FALSE,mfrow=c(1,1),mar=c(0.5,0.5,2.5,0.5))
     if (var == "Impervious" | var == "stormwat_1"){
       plot(bound)
@@ -104,8 +104,9 @@ quick.map <- function(spdf,var,legend.title,main.title,color,outname,style) {
     add.scale()
     dev.off()
   } else if (style == "quantileCuts") {
-    shades <- auto.shading(na.omit(x), cutter = quantileCuts, n=8, cols=brewer.pal(8, color))
-    png(paste(outname,".png", sep=""), width=9, height=8, units="in", res=300)
+    x[is.na(x)] <- 0
+    shades <- auto.shading(x, cutter = quantileCuts, n=8, cols=brewer.pal(8, color))
+    png(paste("figure/",outname,".png", sep=""), width=9, height=8, units="in", res=300)
     par(xpd=FALSE,mfrow=c(1,1),mar=c(0.5,0.5,2.5,0.5))
     choropleth(spdf,x,shades)
     title(main.title,cex.main=1.5)
@@ -129,7 +130,7 @@ df2spdf <- function(col1, col2, colname1, colname2, df){
 }
 
 # input CSV files
-wqsploc.file <- paste0(infolder,"WQ/harbor_sampling_coordinates.csv")
+wqsploc.file <- paste0(infolder,"WQ/DEP/harbor_sampling_coordinates.csv")
 physhs.file <- paste0(infolder,"SE/ACS_13_5YR_S2504_with_ann.csv")
 race.file <- paste0(infolder,"SE/ACS_14_5YR_B02001_with_ann.csv")
 income.file <- paste0(infolder,"SE/ACS_14_5YR_B19013_with_ann.csv")
@@ -144,30 +145,31 @@ tract <- readOGR(dsn=paste0(infolder, "BD"), layer ="cb_2015_36_tract_500k_clip_
 proj4string(tract) <- crs
 bg <- readOGR(dsn=paste0(infolder, "BD"), layer ="cb_2015_36_bg_500k_clip_proj", stringsAsFactors=FALSE)
 proj4string(bg) <- crs
-csoloc <- readOGR(dsn=paste0(infolder, "CSO"), layer ="CSO_locations_clip_proj", stringsAsFactors=FALSE) 
-proj4string(csoloc) <- crs
+csoloc <- readOGR(dsn=paste0(infolder, "CSO"), layer ="dec_cso_2016", stringsAsFactors=FALSE) 
+csoloc <- spTransform(csoloc, crs)
 csodra <- readOGR(dsn=paste0(infolder, "CSO"), layer ="combinedsewer_drainage_area_proj", stringsAsFactors=FALSE)
-proj4string(csodra) <- crs
+proj4string(bg) <- crs
 sewershed <- readOGR(dsn=paste0(infolder, "CSO"), layer ="Sewershed", stringsAsFactors=FALSE)
 proj4string(sewershed) <- crs
-greinfr <- readOGR(dsn=paste0(infolder, "GI"), layer ="DEP_GREEN_INFRASTRUCTURE", stringsAsFactors=FALSE)
+greinfr <- readOGR(dsn="./shapefile", layer="GIsites_all", stringsAsFactors=FALSE)
 greinfr <- spTransform(greinfr,crs)
 
 dem <- raster(paste0(infolder,"DEM/dem_mosaic.tif"))
 mapTheme <- rasterTheme(region = rev(brewer.pal(7, "BrBG")))
 bound_proj <- spTransform(bound, rproj)
+greinfr_proj <- spTransform(greinfr, rproj)
 png("dem.png", width=9, height=8, units="in", res=300)
 par(xpd=FALSE,mfrow=c(1,1),mar=c(0.5,0.5,0.5,0.5))
 cutpts <- c(5, 15, 30, 45, 50, 80, 110, 130)
-levelplot(dem, margin = FALSE, at=cutpts, cuts=8, pretty=TRUE, par.settings = mapTheme)+layer(sp.polygons(bound_proj, lwd=0.8, col='gray'))
+levelplot(dem, margin = FALSE, at=cutpts, cuts=8, pretty=TRUE, par.settings = mapTheme)+
+  layer(sp.polygons(bound_proj, lwd=0.8, col='gray'))+
+  layer(sp.points(greinfr_proj, cex=0.3, pch=20, col='gray70'))
 dev.off()
 
-# to check different groups of elevations
-brk <- c(0, 20, 80, 120)
-arg <- list(at=c(10,50,100), labels=c("Low","Med.","High"))
-plot(dem, col=terrain.colors(3), breaks=brk, axis.args=arg)
-add.northarrow()
-add.scale()
+# # to check different groups of elevations
+# brk <- c(0, 20, 80, 120)
+# arg <- list(at=c(10,50,100), labels=c("Low","Med.","High"))
+# plot(dem, col=terrain.colors(3), breaks=brk, axis.args=arg)
 
 # read socioeconomic data
 physhs <- read.csv(physhs.file, stringsAsFactors = FALSE)
@@ -176,7 +178,7 @@ colnames(physhs.df) <- c("GEOID","total","old")
 physhs.df$pctold <- suppressWarnings(with(physhs.df, ifelse(is.na(total) | is.na(old), NA, round((as.numeric(old)/as.numeric(total)*100), digit=1))))
 physhs.df$pctold <- with(physhs.df, ifelse(pctold > 100, NA, pctold))
 physhs.spdf <- merge(tract, physhs.df, by="GEOID", all.x =FALSE)
-writeOGR(physhs.spdf, dsn=".", layer="house_characteristics", overwrite_layer = TRUE,driver = "ESRI Shapefile")
+writeOGR(physhs.spdf, dsn="./shapefile", layer="house_characteristics", overwrite_layer = TRUE,driver = "ESRI Shapefile")
 
 race <- read.csv(race.file, stringsAsFactors = FALSE)
 race.df <- race[,c("GEO.id2","HD01_VD01","HD01_VD02")]
@@ -184,14 +186,14 @@ colnames(race.df) <- c("GEOID","total","white")
 race.df$pctwht <- suppressWarnings(with(race.df, round((as.numeric(white)/as.numeric(total)*100), digit=1)))
 race.spdf <- merge(tract, race.df, by="GEOID", all.x =FALSE)
 race.spdf$pop <- as.numeric(race.spdf$total)/1000
-writeOGR(race.spdf, dsn=".", layer="race", overwrite_layer = TRUE,driver = "ESRI Shapefile")
+writeOGR(race.spdf, dsn="./shapefile", layer="race", overwrite_layer = TRUE,driver = "ESRI Shapefile")
 
 income <- read.csv(income.file, stringsAsFactors = FALSE)
 income.df <- income[,c("GEO.id2","HD01_VD01")]
 colnames(income.df) <- c("GEOID","income")
 income.df$income <- suppressWarnings(round(as.numeric(income.df$income)/1000,digits = 1))
 income.spdf <- merge(tract, income.df, by="GEOID", all.x =FALSE)
-writeOGR(income.spdf, dsn=".", layer="income", overwrite_layer = TRUE,driver = "ESRI Shapefile")
+writeOGR(income.spdf, dsn="./shapefile", layer="income", overwrite_layer = TRUE,driver = "ESRI Shapefile")
 
 agesex <- read.csv(agesex.file, stringsAsFactors = FALSE)
 agesex.df <- agesex[,c("GEO.id2","HC01_EST_VC36", "HC01_EST_VC38", "HC01_EST_VC39")]
@@ -200,21 +202,21 @@ agesex.df$sex.ratio <- suppressWarnings(as.numeric(agesex.df$sex.ratio))
 agesex.df$oldage.dep <- suppressWarnings(as.numeric(agesex.df$oldage.dep))
 agesex.df$child.dep <- suppressWarnings(as.numeric(agesex.df$child.dep))
 agesex.spdf <- merge(tract, agesex.df, by="GEOID", all.x =FALSE)
-writeOGR(agesex.spdf, dsn=".", layer="age_sex", overwrite_layer = TRUE,driver = "ESRI Shapefile")
+writeOGR(agesex.spdf, dsn="./shapefile", layer="age_sex", overwrite_layer = TRUE,driver = "ESRI Shapefile")
 
 eduatt <- read.csv(eduatt.file, stringsAsFactors = FALSE) 
 eduatt.df <- eduatt[,c("GEO.id2","HC01_EST_VC50")]
 colnames(eduatt.df) <- c("GEOID","edu.att")
 eduatt.df$edu.att <- suppressWarnings(as.numeric(eduatt.df$edu.att))
 eduatt.spdf <- merge(tract, eduatt.df, by="GEOID", all.x =FALSE)
-writeOGR(eduatt.spdf, dsn=".", layer="education", overwrite_layer = TRUE,driver = "ESRI Shapefile")
+writeOGR(eduatt.spdf, dsn="./shapefile", layer="education", overwrite_layer = TRUE,driver = "ESRI Shapefile")
 
 dischar <- read.csv(dischar.file, stringsAsFactors = FALSE)
 dischar.df <- dischar[,c("GEO.id2","HC01_EST_VC48")]
 colnames(dischar.df) <- c("GEOID","dis.sta")
 dischar.df$dis.sta <- suppressWarnings(as.numeric(dischar.df$dis.sta))
 dischar.spdf <- merge(tract, dischar.df, by="GEOID", all.x =FALSE)
-writeOGR(dischar.spdf, dsn=".", layer="disability", overwrite_layer = TRUE,driver = "ESRI Shapefile")
+writeOGR(dischar.spdf, dsn="./shapefile", layer="disability", overwrite_layer = TRUE,driver = "ESRI Shapefile")
 
 # read water quality data
 wqspts <- read.csv(wqsploc.file)
@@ -222,24 +224,29 @@ wqspts.spdf <- df2spdf(4,3,"Long","Lat",wqspts)
 
 # mapping
 # make a complete map
-png(paste("mainmap.png", sep=""), width=9, height=8, units="in", res=300)
+png(paste("figure/mainmap.png", sep=""), width=9, height=8, units="in", res=300)
 par(xpd=FALSE,mfrow=c(1,1),mar=c(1.5,0.5,2.5,0.5))
-plot(bound, main="Green Infrastructure in New York City")
+plot(bound, main="Green infrastructure in New York City")
 plot(csodra,col="#984ea3", border ="darkgrey",add=TRUE)
 plot(wqspts.spdf, add=TRUE, col="#377eb8", pch=16, cex=1.8)
 plot(csoloc, add=TRUE, col="#e41a1c", pch=16, cex=1.3)
 plot(greinfr, add=TRUE, col="#4daf4a", pch=16, cex=0.8)
 add.northarrow()
 add.scale()
-text(cbind(912000, 250000), family="Arial Black", "Legend", cex=1.2)
-draw.circle(910000, 220000, 1600, col="#377eb8", border = "#377eb8")
-text(cbind(937800, 220000), "WQ sampling locations")
-draw.circle(910000, 230000, 1156, col="#e41a1c", border = "#e41a1c")
-text(cbind(930000, 230000), "CSO locations")
-draw.circle(910000, 240000, 711, col="#4daf4a", border = "#4daf4a")
-text(cbind(929000, 240000), "SGI locations")
-rect(907000, 206000, 913000, 210000, col = "#984ea3", border = "darkgrey")
-text(cbind(936000, 208000), "CSO drainage area")
+# text(cbind(912000, 250000), family="Arial Black", "Legend", cex=1.2)
+# draw.circle(910000, 220000, 1600, col="#377eb8", border = "#377eb8")
+# text(cbind(937800, 220000), "WQ sampling locations")
+# draw.circle(910000, 230000, 1156, col="#e41a1c", border = "#e41a1c")
+# text(cbind(930000, 230000), "CSO locations")
+# draw.circle(910000, 240000, 711, col="#4daf4a", border = "#4daf4a")
+# text(cbind(929000, 240000), "SGI locations")
+legend(917000, 230000, bty="n",
+       pch=c(16, 16, 16), 
+       col=c("#377eb8","#e41a1c","#4daf4a"), 
+       pt.cex=c(1.8, 1.3, 0.5),
+       legend=c("WQ sites", "CSO outfalls","GI sites"))
+rect(922000, 206000, 913000, 210000, col = "#984ea3", border = "darkgrey")
+text(cbind(940000, 208000), "CSO drainage area", cex=1.0)
 dev.off()
 
 # check infrastructure data
@@ -267,4 +274,4 @@ df <- merge(df, race.df, by="GEOID")
 names(df)[which(names(df)== "total.y")] <- "totrace"
 names(df)[which(names(df)== "total.x")] <- "totagesex"
 spdf <- merge(tract, df, by="GEOID", all.x =FALSE)
-writeOGR(spdf, dsn=".", layer="socioeco_vars", overwrite_layer = TRUE,driver = "ESRI Shapefile")
+writeOGR(spdf, dsn="./shapefile", layer="socioeco_vars", overwrite_layer = TRUE,driver = "ESRI Shapefile")

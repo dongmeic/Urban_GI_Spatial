@@ -423,9 +423,14 @@ tract <- readOGR(dsn = paste0(infolder, "BD"), layer ="cb_2015_36_tract_500k_cli
 nyadwi <- readOGR(dsn = paste0(infolder, "BD"), layer ="nyadwi_dis", stringsAsFactors = FALSE)
 plot(nyadwi)
 plot(tract, bord="red", add=T)
+dep_hwq <- readOGR(dsn = "./shapefile", layer ="dep_wq_sampling_sites", stringsAsFactors = FALSE)
+dep_hwq <- spTransform(dep_hwq, crs)
 inside <- !is.na(over(wq_pts_proj, as(nyadwi, "SpatialPolygons")))
+hwqinside <- !is.na(over(dep_hwq, as(nyadwi, "SpatialPolygons")))
 wq_pts_in <- wq_pts_proj[inside, ]
+hwq_pts_in <- dep_hwq[hwqinside, ]
 writeOGR(wq_pts_in, dsn="./shapefile", layer="wq_pts_in", overwrite_layer = TRUE,driver = "ESRI Shapefile")
+writeOGR(hwq_pts_in, dsn="./shapefile", layer="hwq_pts_in", overwrite_layer = TRUE,driver = "ESRI Shapefile")
 plot(wq_pts_in, col="blue", add=T)
 wq.df <- as.data.frame(wq_pts_in)
 window = as.owin(nyadwi)
