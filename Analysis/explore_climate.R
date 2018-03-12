@@ -193,6 +193,8 @@ ymdt <- as.POSIXlt(as.Date(clim$DATE, format="%Y-%m-%d"))
 clim$Year <- ymdt$year + 1900
 clim$Month <- ymdt$mon + 1
 clim$DOY <- ymdt$yday + 1
+# clim_df <- clim[clim$STATION=="USC00308721" & clim$Year > 2007,]
+# write.csv(clim_df, "csv/climate_date.csv", row.names=FALSE)
 names(clim)
 
 pts <- as.data.frame(rbind(c(40.6386, -73.7622),c(40.8656, -72.8643)))
