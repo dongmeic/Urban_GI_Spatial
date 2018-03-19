@@ -9,6 +9,21 @@ library(maps)
 library(maptools)
 library(dplyr)
 
+# functions
+# convert dataframe to spatial dataframe
+df2spdf <- function(col1, col2, colname1, colname2, df){
+  xy <- data.frame(df[,c(col1,col2)])
+  coordinates(xy) <- c(colname1, colname2)
+  proj4string(xy) <- lonlat
+  spdf <- SpatialPointsDataFrame(coords = xy, data = df, proj4string = lonlat)
+  spdf <- spTransform(spdf, crs)
+  return(spdf)
+}
+
+lonlat <- CRS("+proj=longlat +datum=NAD83")
+crs <- CRS("+proj=lcc +lat_1=40.66666666666666 +lat_2=41.03333333333333
+           +lat_0=40.16666666666666 +lon_0=-74 +x_0=300000 +y_0=0 +datum=NAD83
+           +units=us-ft +no_defs +ellps=GRS80 +towgs84=0,0,0")
 setwd("/nfs/urbangi-data/spatial_data/output")
 infolder <- "/nfs/urbangi-data/spatial_data/"
 
@@ -205,7 +220,7 @@ locs <- df2spdf(2,1,"Longitude", "Latitude", pts)
 GIsites <- readOGR(dsn = "./shapefile", layer = "GIsites_all", stringsAsFactors = FALSE)
 wq_pts <- readOGR(dsn = "./shapefile", layer = "dep_wq_sampling_sites", stringsAsFactors = FALSE)
 
-png(paste0("figure/clim_monitoring_pt.png"), width=8, height=8, units="in", res=300)
+png(paste0("figure/clim_monitoring_pt.png"), width=8, height=6, units="in", res=300)
 plot(bound, bord="white")
 plot(wbdhu12, add=T)
 plot(bound, bord="grey58", add=T)
@@ -328,4 +343,143 @@ for (i in 2:6){
 }
 legend(0,1500,lty = rep(1,6), col=colors[1:6], 
        bty="n", lwd=rep(2,6), ncol=3,legend=years)
+dev.off()
+
+# update climate data
+clim_1 <- read.csv(paste0(infolder, "CLM/1250709.csv"),stringsAsFactors = FALSE)
+clim_2 <- read.csv(paste0(infolder, "CLM/1250713.csv"),stringsAsFactors = FALSE)
+clim_3 <- read.csv(paste0(infolder, "CLM/1250717.csv"),stringsAsFactors = FALSE)
+colnames <- c("STATION", "NAME", "LATITUDE", "LONGITUDE", "ELEVATION", "DATE", "PRCP",
+              "TAVG", "TMAX", "TMIN", "TMIN")
+clim_1 <- clim_1[,colnames];clim_2 <- clim_2[,colnames];clim_3 <- clim_3[,colnames]
+clim_n <- rbind(clim_1, clim_2, clim_3)
+
+par(xpd=FALSE,mfrow=c(1,1),mar=c(0.5,0.5,0.5,0.5))
+clm.pts <- df2spdf(4,3,"LONGITUDE","LATITUDE",clim_n)
+clm.pts <- remove.duplicates(clm.pts)
+clm.pts$NO <- 1:length(clm.pts$NAME)
+plot(bound)
+plot(clm.pts, pch=16, col="red", add=T)
+pointLabel(clm.pts$LONGITUDE, clm.pts$LATITUDE, as.character(clm.pts$NO), 
+           cex=1.2, col="blue", offset = 2)
+
+# pick the stations
+stations <- c(15,169,157,12,166,158,143,160,73,6,102,7,105,99,117,65,66,98,5,125,146,9,96,79)
+clm.pts <- clm.pts[clm.pts$NO %in% stations,]
+png(paste0("figure/clim_monitoring_pts.png"), width=8, height=6, units="in", res=300)
+par(xpd=FALSE,mfrow=c(1,1),mar=c(0.5,0.5,0.5,0.5))
+plot(bound, bord="white")
+plot(wbdhu12, add=T)
+plot(bound, bord="grey58", add=T)
+plot(GIsites, pch=16, cex=0.5, col=rgb(0,0.8,0,0.8), add=T)
+plot(wq_pts, pch=20, col=rgb(0,0,0.8,0.6), add=T)
+plot(clm.pts, pch=16, cex=1.5, col="red", add=T)
+#pointLabel(clm.pts$LONGITUDE, clm.pts$LATITUDE, clm.pts$NAME,cex=0.5, col="blue", offset = 2)
+text(940000, 260000, cex=1.4, "Climate monitoring location")
+legend(920000, 240000, bty="n", pch=c(16,20,16), 
+       col=c(rgb(0,0.8,0,0.8),rgb(0,0,0.8,0.6),"red"), 
+       pt.cex=c(0.5,1,1.5),
+       cex = 1.2,
+       legend=c("GI sites","WQ sites","CLM sites"))
+legend(915000, 215000, bty="n",lty = 1, col=c("black", "grey58"),
+       legend = c("WBD HU12", "NYC"))
+dev.off()
+
+# get climate data from the selected stations
+clim <- clim_n[clim_n$NAME %in% clm.pts$NAME,]
+ymdt <- as.POSIXlt(as.Date(clim$DATE, format="%Y-%m-%d"))
+clim$Year <- ymdt$year + 1900
+clim$Month <- ymdt$mon + 1
+clim$DOY <- ymdt$yday + 1
+write.csv(clim, "csv/climatedata_nyc.csv", row.names=FALSE)
+
+# repeated codes here
+# yearly precipitation
+ggplot(clim) + 
+  geom_bar(aes(as.character(Year), PRCP, fill = as.factor(Month)), 
+           position = "stack", stat = "summary", fun.y = mean) + 
+  scale_fill_manual(values=month.colors) +
+  labs(x="Year", y="Precipitation (mm)", fill="Month", 
+       title="Annual precipitation in NYC",
+       subtitle="(2008 - 2017)")
+ggsave(paste0("figure/precp_year.png"), width=8, height=5, units="in")
+
+# monthly precipitation
+ggplot(clim) + 
+  geom_bar(aes(formatC(Month, width=2, flag="0"), PRCP, fill=as.character(Month)), 
+           stat = "summary", fun.y = mean)+
+  scale_fill_manual(values=month.colors)+
+  geom_point(aes(formatC(Month, width=2, flag="0"), PRCP, size=2, colour=as.character(Year)),
+             stat = "summary", fun.y = mean)+
+  scale_colour_manual(values=year.colors)+
+  scale_size(guide = "none")+
+  labs(x="Month", y="Precipitation (mm)", fill="Month", colour="Year",
+       title = "Seasonal precipitation in NYC",
+       subtitle = "(2008 - 2017)")
+ggsave(paste0("figure/precp_month.png"), width=8, height=7, units="in")
+
+# yearly temperature
+ggplot(clim) + 
+  geom_bar(aes(as.character(Year), (TMAX+TMIN)/2, fill = as.factor(Month)), 
+           position = "stack", stat = "summary", fun.y = mean) + 
+  scale_fill_manual(values=month.colors) +
+  labs(x="Year", y="(Tmax + Tmin)/2 (°C)", fill="Month", 
+       title="Annual temperature in NYC",
+       subtitle="(2008 - 2017)")
+ggsave(paste0("figure/temp_year.png"), width=8, height=5, units="in")
+
+# monthly temperature
+ggplot(clim) + 
+  geom_bar(aes(formatC(Month, width=2, flag="0"), (TMAX+TMIN)/2, fill=as.character(Month)), 
+           stat = "summary", fun.y = mean)+
+  scale_fill_manual(values=month.colors)+
+  geom_point(aes(formatC(Month, width=2, flag="0"), (TMAX+TMIN)/2, size=2, colour=as.character(Year)),
+             stat = "summary", fun.y = mean)+
+  scale_colour_manual(values=year.colors)+
+  scale_size(guide = "none")+ 
+  labs(x="Month", y="(Tmax + Tmin)/2 (°C)", fill="Month", colour="Year",
+       title = "Seasonal temperature in NYC",
+       subtitle = "(2008 - 2017)")
+ggsave(paste0("figure/temp_month.png"), width=8, height=7, units="in")
+
+ggplot(clim) + 
+  geom_bar(aes(DOY, PRCP, fill = as.factor(Year)), 
+           position = "stack", stat = "summary", fun.y = sum) + 
+  scale_fill_manual(values=month.colors) +
+  stat_summary(aes(x=DOY, y = PRCP, group=1), fun.y=sum,  geom="line", group=1)+
+  labs(x="Day of year", y="Precipitation (mm)", fill="Year", 
+       title="Precipitation in NYC",
+       subtitle="(2008 - 2017)")
+ggsave(paste0("figure/precp_day.png"), width=10, height=6, units="in")
+
+# daily temperature
+png(paste0("figure/temp_day.png"), width=9, height=5, units="in", res=300)
+par(xpd=FALSE,mfrow=c(1,1),mar=c(4.5,4.5,0.5,0.5))
+plot(clim$DOY, clim$TMIN, pch=16, cex=0.5, col=rgb(0,0,1,0.8),
+     xlab="Day of year", ylab="Temperature (°C)",
+     xlim=c(1, 366), ylim=c(-22, 40))
+points(clim$DOY, clim$TMAX, pch=16, cex=0.5, col=rgb(1,0,0,0.8))
+points(clim$DOY, clim$TAVG, pch=16, cex=0.5, col=rgb(0,1,0,0.8))
+legend(200, 0, bty="n", pch=c(16,16,16), 
+       col=c(rgb(1,0,0,0.8),rgb(0,1,0,0.8),rgb(0,0,1,0.8)),
+       pt.cex=c(0.5,0.5,0.5),
+       legend=c("Tmax", "Tmean", "Tmin"))
+dev.off()
+
+greyscales <- colorRampPalette(c('black','white'))(10)
+
+years <- 2008:2017
+png(paste0("figure/cumprep_day.png"), width=9, height=5, units="in", res=300)
+par(xpd=FALSE,mfrow=c(1,1),mar=c(4.5,4.5,0.5,0.5))
+plot(c(0, clim[clim$Year == 2008 & clim$STATION == "US1NJBG0003", ]$DOY), 
+     cumsum(c(0, clim[clim$Year == 2008 & clim$STATION == "US1NJBG0003", ]$PRCP)), 
+     type="l", col=year.colors[1], xlim=c(1,366), ylim=c(0, 1800), lwd=3,
+     xlab="Day of year", ylab="Cumulative precipitation (mm)")
+for (i in 2:10){
+  lines(c(0, clim[clim$Year == years[i] & clim$STATION == "US1NJBG0003", ]$DOY), 
+        cumsum(c(0, clim[clim$Year == years[i] & clim$STATION == "US1NJBG0003", ]$PRCP)), 
+        lty=1, lwd=3, col=year.colors[i])
+}
+legend(0,1800,lty = rep(1,6), col=year.colors[1:12], 
+       bty="n", lwd=rep(2,6), ncol=5,legend=years)
 dev.off()
