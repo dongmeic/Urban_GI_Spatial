@@ -41,16 +41,6 @@ month.colors <- c('#a6cee3','#1f78b4','#b2df8a','#33a02c',
 year.colors <- c('#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99',
                  '#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a')
 
-# functions
-df2spdf <- function(col1, col2, colname1, colname2, df){
-  xy <- data.frame(df[,c(col1,col2)])
-  coordinates(xy) <- c(colname1, colname2)
-  proj4string(xy) <- lonlat
-  xy.n <- spTransform(xy, crs)
-  spdf <- SpatialPointsDataFrame(coords = xy.n, data = df, proj4string = crs)
-  return(spdf)
-}
-
 # read storm data
 # file.loc <- "https://www1.ncdc.noaa.gov/pub/data/swdi/stormevents/csvfiles/"
 filenm <- "StormEvents_details-ftp_v1.0_d"
@@ -375,7 +365,7 @@ plot(GIsites, pch=16, cex=0.5, col=rgb(0,0.8,0,0.8), add=T)
 plot(wq_pts, pch=20, col=rgb(0,0,0.8,0.6), add=T)
 plot(clm.pts, pch=16, cex=1.5, col="red", add=T)
 #pointLabel(clm.pts$LONGITUDE, clm.pts$LATITUDE, clm.pts$NAME,cex=0.5, col="blue", offset = 2)
-text(940000, 260000, cex=1.4, "Climate monitoring location")
+text(940000, 260000, cex=1.4, "Climate monitoring locations")
 legend(920000, 240000, bty="n", pch=c(16,20,16), 
        col=c(rgb(0,0.8,0,0.8),rgb(0,0,0.8,0.6),"red"), 
        pt.cex=c(0.5,1,1.5),
@@ -465,8 +455,6 @@ legend(200, 0, bty="n", pch=c(16,16,16),
        pt.cex=c(0.5,0.5,0.5),
        legend=c("Tmax", "Tmean", "Tmin"))
 dev.off()
-
-greyscales <- colorRampPalette(c('black','white'))(10)
 
 years <- 2008:2017
 png(paste0("figure/cumprep_day.png"), width=9, height=5, units="in", res=300)
