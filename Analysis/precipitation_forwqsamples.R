@@ -13,7 +13,8 @@ setwd("/nfs/urbangi-data/spatial_data/output")
 infolder <- "/nfs/urbangi-data/spatial_data/"
 
 # Load Data ---------------------------------------------------------------
-NY_precip <- read.csv(file="csv/climate_date.csv",stringsAsFactors = FALSE)
+NY_precip <- read.csv(file="csv/climatedata_nyc.csv",stringsAsFactors = FALSE)
+NY_precip <- NY_precip[NY_precip$STATION == "US1NJBG0003",]
 NY_precip <- NY_precip[,c("DATE","PRCP")]
 NY_precip$DATE <- as.Date(NY_precip$DATE)
 head(NY_precip)
@@ -40,8 +41,21 @@ NY_wq$pre2 <- rep(NA, length(start.test))
 
 #WQ dates
 end.test <- NY_wq$date
-start.test <- end.test - 10 # change the number here to set the days before sampling date
+start.test <- end.test - 2
+for(i in 1:length(end.test)){
+  # change the number here too
+  NY_wq$pre2[i] <- sum(precipfunc(start.test[i], end.test[i])$PRCP)
+  print(NY_wq$pre2[i])
+}
 
+start.test <- end.test - 7
+for(i in 1:length(end.test)){
+  # change the number here too
+  NY_wq$pre7[i] <- sum(precipfunc(start.test[i], end.test[i])$PRCP)
+  print(NY_wq$pre7[i])
+}
+
+start.test <- end.test - 10
 for(i in 1:length(end.test)){
   # change the number here too
   NY_wq$pre10[i] <- sum(precipfunc(start.test[i], end.test[i])$PRCP)
