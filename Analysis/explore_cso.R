@@ -91,6 +91,49 @@ quick.map <- function(spdf,pspdf,var,color,legend.title,outname) {
   dev.off()
 }
 
+reshape.df <- function(df,col1,col2){
+  data <- df[,col1:col2]
+  data_1 <- data[,1:2]; data_2 <- data[,3:4]; data_3 <- data[,5:6]; data_4 <- data[,7:8]
+  names(data_1) <- c("Volume", "Events")
+  names(data_2) <- c("Volume", "Events")
+  names(data_3) <- c("Events", "Volume")
+  names(data_4) <- c("Events", "Volume")
+  data_5 <- rbind(data_1, data_2, data_3, data_4)
+  data_6 <- cbind(data_5, c(rep("2013", dim(data_1)[1]), 
+                            rep("2014", dim(data_2)[1]), 
+                            rep("2015", dim(data_3)[1]),
+                            rep("2016", dim(data_4)[1])))
+  colnames(data_6)[3] <- "Year"
+  return(data_6)
+}
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+
+summary.list = function(x)list(
+  N.with.NA.removed= length(x[!is.na(x)]),
+  Count.of.NA= length(x[is.na(x)]),
+  Mean=mean(x, na.rm=TRUE),
+  Median=median(x, na.rm=TRUE),
+  Max.Min=range(x, na.rm=TRUE),
+  Range=max(x, na.rm=TRUE) - min(x, na.rm=TRUE),
+  Variance=var(x, na.rm=TRUE),
+  Std.Dev=sd(x, na.rm=TRUE),
+  Coeff.Var=sd(x, na.rm=TRUE)/mean(x, na.rm=TRUE),
+  Std.Error=sd(x, na.rm=TRUE)/sqrt(length(x[!is.na(x)])),
+  Quantile=quantile(x, na.rm=TRUE)
+)
+
+Stats <- function(x){
+  Mean <- mean(x, na.rm=TRUE)
+  SD <- sd(x, na.rm=TRUE)
+  Range <- max(x, na.rm=TRUE) - min(x, na.rm=TRUE)
+  Variance <- var(x, na.rm=TRUE)
+  Coeff.Var <- sd(x, na.rm=TRUE)/mean(x, na.rm=TRUE)
+  return(c(Mean=Mean, SD=SD, Range=Range, Var=Variance, Coeff_Var = Coeff.Var))
+}
+
 csoloc <- readOGR(dsn=paste0(infolder, "CSO"), layer ="dec_cso_2016", stringsAsFactors=FALSE) 
 csoloc <- spTransform(csoloc, crs)
 greinfr <- readOGR(dsn="./shapefile", layer="GIsites_all", stringsAsFactors=FALSE)
@@ -101,45 +144,67 @@ wq_pts <- readOGR(dsn = "./shapefile", layer = "dep_wq_sampling_sites", stringsA
 pilots <- readOGR(dsn = paste0(infolder, "GI"), layer ="GI_pilots", stringsAsFactors = FALSE)
 pilots <- spTransform(pilots, crs)
 sewershed <- readOGR(dsn = paste0(infolder, "watershed/Sewershed"), layer = "Sewershed")
+cso.shed <- readOGR(dsn=paste0(infolder, "CSO"), layer = "combinedsewer_drainage_area", stringsAsFactors = FALSE)
+cso.shed <- spTransform(cso.shed, crs)
+keyreg <- readOGR(dsn="./shapefile", layer = "key_regulators", stringsAsFactors = FALSE)
+wwtp <- readOGR(dsn=paste0(infolder, "CSO/wastewater_treatment_plants"), 
+                layer = "wastewater_treatment_plants", stringsAsFactors = FALSE)
+wwtp <- spTransform(wwtp, crs)
+
+# priority CSO watershed
+# priority.cso.watersheds <- readOGR(dsn = paste0(infolder, "watershed"), 
+#                                    layer = "priority_cso_watersheds", stringsAsFactors = FALSE)
+# priority.outfalls <- priority.cso.watersheds$outfall
 
 png("figure/CSO_outfalls.png", width=8, height=8, units="in", res=300)
-plot(bound, bord="white", title="Combined sewer overflow outfalls in NYC")
+plot(bound, bord="white", main="Combined sewer overflow outfalls in NYC")
 plot(wbdhu12, add=T)
+#plot(cso_shed, bord="grey32", add=T)
 plot(wq_pts, pch=16, cex=1.2, col=rgb(0,0,0.8,0.8), add=T)
+plot(keyreg, pch=7, cex=1.5, add=T)
+plot(wwtp, pch=2, cex=1.5, add=T)
 plot(csoloc, pch=16, cex=0.8, col=rgb(0.8,0,0,0.8), add=T)
 plot(greinfr, pch=20, cex=0.3, col=rgb(0,0.8,0,0.8), add=T)
-plot(pilots, pch=1, cex=1.5, col=rgb(0,1,0), add=T)
+plot(pilots, pch=1, cex=1.5, col=rgb(0,0.3,0), add=T)
 plot(bound, bord="grey58", add=T)
 northarrow(c(925050,195000),3500)
 add.scale()
-legend(920000, 260000, bty="n",
-       pch=c(1,16,16,20), 
-       col=c(rgb(0,1,0),rgb(0,0,0.8,0.8),rgb(0.8,0,0,0.8),rgb(0,0.8,0,0.8)), 
-       pt.cex=c(1.5,1.2,0.8,0.3),
+legend(920000, 270000, bty="n",
+       pch=c(7,2,1,16,16,20), 
+       col=c(rgb(0,0,0),rgb(0,0,0),rgb(0,1,0),rgb(0,0,0.8,0.8),rgb(0.8,0,0,0.8),rgb(0,0.8,0,0.8)), 
+       pt.cex=c(1.5,1.5,1.5,1.2,0.8,0.3),
        cex = 1.2,
-       legend=c("GI pilot sites", "WQ sites", "CSO outfalls", "GI sites"))
+       legend=c("Key regulators","WWTP","GI pilot sites", "WQ sites", "CSO outfalls", "GI sites"))
 legend(915000, 230000, bty="n",lty = 1, col=c("black", "grey58"),
        legend = c("WBD HU12", "NYC"))
 dev.off()
 
-# CSO volume and events
-csoloc$Sewershed <- over(csoloc, sewershed)$Sewershed=
-cso_shed <- aggregate(volume_13 ~ Sewershed, data=csoloc, mean, na.rm=TRUE)
-Sewershed <- merge(sewershed, cso_shed, by="Sewershed")
-cso_shed <- aggregate(events_13 ~ Sewershed, data=csoloc, mean, na.rm=TRUE)
-Sewershed <- merge(Sewershed, cso_shed, by="Sewershed")
-cso_shed <- aggregate(volume_14 ~ Sewershed, data=csoloc, mean, na.rm=TRUE)
-Sewershed <- merge(Sewershed, cso_shed, by="Sewershed")
-cso_shed <- aggregate(events_14 ~ Sewershed, data=csoloc, mean, na.rm=TRUE)
-Sewershed <- merge(Sewershed, cso_shed, by="Sewershed")
-cso_shed <- aggregate(volume_15 ~ Sewershed, data=csoloc, mean, na.rm=TRUE)
-Sewershed <- merge(Sewershed, cso_shed, by="Sewershed")
-cso_shed <- aggregate(events_15 ~ Sewershed, data=csoloc, mean, na.rm=TRUE)
-Sewershed <- merge(Sewershed, cso_shed, by="Sewershed")
-cso_shed <- aggregate(volume_16 ~ Sewershed, data=csoloc, mean, na.rm=TRUE)
-Sewershed <- merge(Sewershed, cso_shed, by="Sewershed")
-cso_shed <- aggregate(events_16 ~ Sewershed, data=csoloc, mean, na.rm=TRUE)
-Sewershed <- merge(Sewershed, cso_shed, by="Sewershed")
+# CSO volume and events by sewershed
+csoloc$Sewershed <- over(csoloc, sewershed)$Sewershed
+cso_sewershed <- aggregate(volume_13 ~ Sewershed, data=csoloc, mean, na.rm=TRUE)
+Sewershed <- merge(sewershed, cso_sewershed, by="Sewershed")
+cso_sewershed <- aggregate(events_13 ~ Sewershed, data=csoloc, mean, na.rm=TRUE)
+Sewershed <- merge(Sewershed, cso_sewershed, by="Sewershed")
+cso_sewershed <- aggregate(volume_14 ~ Sewershed, data=csoloc, mean, na.rm=TRUE)
+Sewershed <- merge(Sewershed, cso_sewershed, by="Sewershed")
+cso_sewershed <- aggregate(events_14 ~ Sewershed, data=csoloc, mean, na.rm=TRUE)
+Sewershed <- merge(Sewershed, cso_sewershed, by="Sewershed")
+cso_sewershed <- aggregate(volume_15 ~ Sewershed, data=csoloc, mean, na.rm=TRUE)
+Sewershed <- merge(Sewershed, cso_sewershed, by="Sewershed")
+cso_sewershed <- aggregate(events_15 ~ Sewershed, data=csoloc, mean, na.rm=TRUE)
+Sewershed <- merge(Sewershed, cso_sewershed, by="Sewershed")
+cso_sewershed <- aggregate(volume_16 ~ Sewershed, data=csoloc, mean, na.rm=TRUE)
+Sewershed <- merge(Sewershed, cso_sewershed, by="Sewershed")
+cso_sewershed <- aggregate(events_16 ~ Sewershed, data=csoloc, mean, na.rm=TRUE)
+Sewershed <- merge(Sewershed, cso_sewershed, by="Sewershed")
+
+# CSO volume and events by CSOshed
+outfalls <- c("26-001", "26-002", "26-003", "26-004", "26-005")
+csoloc$outfall <- ifelse(csoloc$outfall_id %in% outfalls, paste0("26W",substrRight(csoloc$outfall_id,4)), 
+                         csoloc$outfall_id)
+writeOGR(csoloc, dsn="./shapefile", layer="csoloc", overwrite_layer = TRUE, driver = "ESRI Shapefile")
+cso.shed <- merge(cso.shed, csoloc, by="outfall")
+
 
 # quick maps
 # quick.map(spdf,pspdf,var,color,legend.title,outname)
@@ -156,36 +221,115 @@ for (i in yrs){
 }
 
 # area
+# quick.map(spdf,pspdf,var,color,legend.title,outname)
 for (i in yrs){
-  quick.map(Sewershed,csoloc,paste0("volume_",i),"Blues",paste0("Volume 20",i),paste0("cso_volume",i))
+  quick.map(cso.shed,csoloc,paste0("volume_",i),"Blues",paste0("Volume 20",i),paste0("cso_volume",i))
   print(i)
 }
 
 for (i in yrs){
-  quick.map(Sewershed,csoloc,paste0("events_",i),"Blues",paste0("Events 20",i),paste0("cso_events",i))
+  quick.map(cso.shed,csoloc,paste0("events_",i),"Blues",paste0("Events 20",i),paste0("cso_events",i))
+  print(i)
+}
+
+for (i in yrs){
+  quick.map(Sewershed,csoloc,paste0("volume_",i),"Blues",paste0("Volume 20",i),paste0("cso_volume_sewershed",i))
+  print(i)
+}
+
+for (i in yrs){
+  quick.map(Sewershed,csoloc,paste0("events_",i),"Blues",paste0("Events 20",i),paste0("cso_events_sewershed",i))
   print(i)
 }
 
 # reorganize data frame
-data <- csoloc@data[,7:14]
-data_1 <- data[,1:2]; data_2 <- data[,3:4]; data_3 <- data[,5:6]; data_4 <- data[,7:8]
-names(data_1) <- c("volume", "events")
-names(data_2) <- c("volume", "events")
-names(data_3) <- c("volume", "events")
-names(data_4) <- c("volume", "events")
-data_5 <- rbind(data_1, data_2, data_3, data_4)
-data_6 <- cbind(data_5, c(rep(2013, dim(data_1)[1]), 
-                          rep(2014, dim(data_1)[1]), 
-                          rep(2015, dim(data_1)[1]),
-                          rep(2016, dim(data_1)[1])))
-colnames(data_6)[3] <- "year"
-data_7 <- na.omit(data_6)
-data_7$year <- as.character(data_7$year)
-
-ggplot(data=data_7) + geom_boxplot(aes(year, log(volume))) + 
-  labs(x="Year", y="CSO volume (log)", title="Combined sewer overflows in NYC")
+data_7 <- reshape.df(csoloc@data, 7, 14)
+ggplot(data=data_7,aes(Year, log(Volume))) + geom_boxplot() + 
+  labs(y="CSO volume (log)", title="Combined sewer overflows in NYC")
 ggsave(paste0("figure/cso_volume.png"), width=4, height=3, units="in")
 
-ggplot(data=data_7) + geom_boxplot(aes(year, log(events))) + 
-  labs(x="Year", y="CSO events (log)", title="Combined sewer overflows in NYC")
+ggplot(data=data_7,aes(Year, Events)) + geom_boxplot() + 
+  labs(y="CSO events", title="Combined sewer overflows in NYC")+
+  geom_point(stat = 'summary',
+             fun.y = 'mean',
+             color = "red")
 ggsave(paste0("figure/cso_events.png"), width=4, height=3, units="in")
+
+# SGI density by CSO watershed
+greinfr$outfall <- over(greinfr, cso.shed)$outfall
+# greinfr$GI_ID <- 1:length(greinfr$Asset_ID)
+# greinfr <- greinfr[ ,!names(greinfr) %in% "GI_ID"]
+SGIqntty <- aggregate(Asset_ID ~ outfall, data=greinfr, function(x) length(x))
+names(SGIqntty)[2] <- "SGIqntty"
+cso.shed <- merge(cso.shed, SGIqntty, by="outfall")
+cso.shed.spdf <- cso.shed[!is.na(cso.shed$SGIqntty) && cso.shed$SGIqntty > 0, ]
+# check in ArcGIS and select the CSO watersheds with high SGI density visually
+SGIdens.h.cso.shed <- c("26W-003", "BB-006", "BB-008", "HP-008", "NCB-015", "OH-007", "RH-034")
+cso.shed.spdf$SGIlevel <- ifelse(cso.shed.spdf$outfall %in% SGIdens.h.cso.shed, "High", "Low")
+cso.shed.df <- as.data.frame(cso.shed.spdf)
+cso.shed.df$SGIdens <- cso.shed.df$SGIqntty/cso.shed.df$acreage
+par(xpd=FALSE,mfrow=c(1,1),mar=c(4.5,4.5,0.5,0.5))
+# check CSO volumes or events vs SGI density by CSO watersheds
+plot(cso.shed.df$SGIdens, cso.shed.df$volume_13)
+plot(cso.shed.df$SGIdens, cso.shed.df$events_16)
+lm <- lm(cso.shed.df$events_13 ~ cso.shed.df$SGIdens)
+summary(lm) 
+# not significant
+
+# check the summary statistics of CSO volumes or events
+volume.df <- cso.shed.df[,c(13,15,18,20)]
+volume.ndf <- cbind(cso.shed.df, t(apply(volume.df,1,Stats)))
+events.df <- cso.shed.df[,c(14,16,17,19)]
+events.ndf <- cbind(cso.shed.df, t(apply(events.df,1,Stats)))
+# cso.shed.df$volume_mean <- rowMeans(volume.df,na.rm = TRUE)
+# cso.shed.df$events_mean <- rowMeans(events.df,na.rm = TRUE)
+summary.list(cso.shed.df$events_13)
+plot(volume.ndf$SGIdens, volume.ndf$Mean)
+ggplot(data=volume.ndf)+ geom_boxplot(aes(SGIlevel, Range))
+
+# reshape dataframe volume.ndf & events.ndf
+cso.vol.df <- reshape.df(volume.ndf, 13, 20)
+cso.vol.df$SGIlevel <- rep(volume.ndf$SGIlevel,4)
+cso.vol.df$SGIdens <- rep(volume.ndf$SGIdens,4)
+
+ggplot(data=cso.vol.df)+ geom_boxplot(aes(SGIlevel, Volume, color=Year))+
+  labs(x="SGI density level", title="Combined sewer overflows in NYC")
+ggsave(paste0("figure/cso_volume_SGIlevel.png"), width=4, height=3, units="in")
+
+ggplot(data=cso.vol.df)+ geom_boxplot(aes(SGIlevel, Events, color=Year))+
+  labs(x="SGI density level", title="Combined sewer overflows in NYC")
+ggsave(paste0("figure/cso_events_SGIlevel.png"), width=4, height=3, units="in")
+
+ggplot(data=cso.vol.df)+ geom_point(aes(SGIdens, Volume, color=Year))+
+  labs(x="SGI density",title="Combined sewer overflows in NYC")
+ggsave(paste0("figure/cso_volume_SGIdens.png"), width=4, height=3, units="in")
+
+ggplot(data=cso.vol.df)+ geom_point(aes(SGIdens, Events, color=Year))+
+  labs(x="SGI density",title="Combined sewer overflows in NYC")
+ggsave(paste0("figure/cso_events_SGIdens.png"), width=4, height=3, units="in")
+
+cor.test(cso.vol.df$SGIdens, cso.vol.df$Volume)
+cor.test(cso.vol.df$SGIdens, cso.vol.df$Events)
+write.csv(cso.vol.df, "CSV/cso_vol_events_sgi.csv", row.names = F)
+
+# use managed imperviousness instead of SGI density
+mitigated_area <- readOGR(dsn="./shapefile", layer ="DEP_GI_withDA_040618", stringsAsFactors=FALSE)
+mitigated_area <- spTransform(mitigated_area, crs)
+mitigated_area$outfall <- over(mitigated_area, cso.shed)$outfall
+mitigatedArea <- aggregate(mtgtn_2 ~ outfall, data=mitigated_area, function(x) sum(x))
+cso.shed <- merge(cso.shed, mitigatedArea, by="outfall")
+cso.shed.spdf <- cso.shed[!is.na(cso.shed$mtgtn_2) && cso.shed$mtgtn_2 > 0, ]
+cso.shed.df <- as.data.frame(cso.shed.spdf)
+cso.mitigated.df <- reshape.df(cso.shed.df, 13, 20)
+cso.mitigated.df$MitigatedArea <- rep(cso.shed.df$mtgtn_2,4)
+
+ggplot(data=cso.mitigated.df)+ geom_point(aes(MitigatedArea, Volume, color=Year))+
+  labs(x="SGI mitigated area", title="Combined sewer overflows in NYC")
+ggsave(paste0("figure/cso_volume_mitigated.png"), width=4, height=3, units="in")
+
+ggplot(data=cso.mitigated.df)+ geom_point(aes(MitigatedArea, Events, color=Year))+
+  labs(x="SGI mitigated area", title="Combined sewer overflows in NYC")
+ggsave(paste0("figure/cso_events_mitigated.png"), width=4, height=3, units="in")
+
+cor.test(cso.mitigated.df$MitigatedArea, cso.mitigated.df$Volume)
+cor.test(cso.mitigated.df$MitigatedArea, cso.mitigated.df$Events)
