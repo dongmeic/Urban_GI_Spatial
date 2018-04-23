@@ -63,7 +63,7 @@ bound <- spTransform(bound, crs)
 wbdhu12 <- readOGR(dsn = paste0(infolder, "WBDHU"), layer = "wbdhu_12", stringsAsFactors = FALSE)
 wbdhu12 <- spTransform(wbdhu12, crs)
 
-GIsites_all <- readOGR(dsn="./shapefile", layer="GIsites_all", stringsAsFactors = FALSE)
+GIsites_all <- readOGR(dsn="./shapefile", layer="GIsites_all_corrected", stringsAsFactors = FALSE)
 gitypes.colors <- c('#e6ab02','#999999','#ff7f00', '#4daf4a','#e41a1c','#984ea3','#f781bf','#377eb8')
 gitypes <- c("Rain barrels", "Detention", "Permeable", "Green streets", 
              "Green roofs", "Bioswales", "Rain gardens", "Bluebelts")
@@ -140,7 +140,7 @@ wbdhu12 <- merge(wbdhu12, SGI.dens.hu12, by="huid")
 wbdhu12$SGIdens <- wbdhu12$SGIdens/wbdhu12$AREAACRES
 names(wbdhu12)[which(names(wbdhu12)=="huid")] <- "hu12"
 dep_hwq <- merge(dep_hwq, wbdhu12[,c("hu12", "SGIdens")], by="hu12")
-hwq.ent <- subset(dep_hwq, year ==2008 & pre2>0 & Key=="Ent_top" & !is.na(Value))
+hwq.ent <- subset(dep_hwq, year==2016 & month==8 & pre2>0 & Key=="Ent_top" & !is.na(Value))
 head(hwq.ent)
 hist(log(hwq.ent$Value))
 plot(hwq.ent$SGIdens, log(hwq.ent$Value))

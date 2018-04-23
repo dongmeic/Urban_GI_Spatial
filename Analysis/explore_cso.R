@@ -10,6 +10,7 @@ library(rgdal)
 library(RColorBrewer)
 library(classInt)
 library(ggplot2)
+library(reshape)
 
 # projection and roi(region of interest)
 crs <- CRS("+proj=lcc +lat_1=40.66666666666666 +lat_2=41.03333333333333 
@@ -308,8 +309,8 @@ ggplot(data=cso.vol.df)+ geom_point(aes(SGIdens, Events, color=Year))+
   labs(x="SGI density",title="Combined sewer overflows in NYC")
 ggsave(paste0("figure/cso_events_SGIdens.png"), width=4, height=3, units="in")
 
-cor.test(cso.vol.df$SGIdens, cso.vol.df$Volume)
-cor.test(cso.vol.df$SGIdens, cso.vol.df$Events)
+cor.test(~SGIdens+Volume, cso.vol.df)
+cor.test(~SGIdens+Events, cso.vol.df)
 write.csv(cso.vol.df, "CSV/cso_vol_events_sgi.csv", row.names = F)
 
 # use managed imperviousness instead of SGI density
@@ -318,6 +319,9 @@ mitigated_area <- spTransform(mitigated_area, crs)
 mitigated_area$outfall <- over(mitigated_area, cso.shed)$outfall
 mitigatedArea <- aggregate(mtgtn_2 ~ outfall, data=mitigated_area, function(x) sum(x))
 cso.shed <- merge(cso.shed, mitigatedArea, by="outfall")
+cso.shed$mtgtn_2 <- round(cso.shed$mtgtn_2, 1)
+writeOGR(cso.shed, dsn="./shapefile", layer="cso_watershed", 
+         overwrite_layer = TRUE,driver = "ESRI Shapefile")
 cso.shed.spdf <- cso.shed[!is.na(cso.shed$mtgtn_2) && cso.shed$mtgtn_2 > 0, ]
 cso.shed.df <- as.data.frame(cso.shed.spdf)
 cso.mitigated.df <- reshape.df(cso.shed.df, 13, 20)
@@ -331,5 +335,53 @@ ggplot(data=cso.mitigated.df)+ geom_point(aes(MitigatedArea, Events, color=Year)
   labs(x="SGI mitigated area", title="Combined sewer overflows in NYC")
 ggsave(paste0("figure/cso_events_mitigated.png"), width=4, height=3, units="in")
 
-cor.test(cso.mitigated.df$MitigatedArea, cso.mitigated.df$Volume)
-cor.test(cso.mitigated.df$MitigatedArea, cso.mitigated.df$Events)
+cor.test(~MitigatedArea+Volume, data=cso.mitigated.df)
+cor.test(~MitigatedArea+Events, data=cso.mitigated.df)
+
+# select a particular year
+cor.test(~MitigatedArea+Volume, data=subset(cso.mitigated.df, Year==2015))
+cor.test(~MitigatedArea+Events, data=subset(cso.mitigated.df, Year==2013))
+
+# monthly CSO data
+monthly_cso_2014 <- read.csv(paste0(infolder, "CSO/2014_page17.csv"))
+monthly_cso_2014 <- monthly_cso_2014[,!(colnames(monthly_cso_2014) %in% c("All", "Duration", "Category"))]
+cso_2014 <- melt(monthly_cso_2014, id.vars = "Regulator", measure.vars = c("Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"))
+names(cso_2014)[2:3] <- c("Month", "Events")
+cso_2014$Year <- rep(2014, dim(cso_2014)[1])
+monthly_cso_2015 <- read.csv(paste0(infolder, "CSO/2015_page65.csv"))
+monthly_cso_2015 <- monthly_cso_2015[,!(colnames(monthly_cso_2015) %in% c("All", "Duration", "Category"))]
+cso_2015 <- melt(monthly_cso_2015, id.vars = "Regulator", measure.vars = c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"))
+names(cso_2015)[2:3] <- c("Month", "Events")
+cso_2015$Year <- rep(2015, dim(cso_2015)[1])
+monthly_cso_2016 <- read.csv(paste0(infolder, "CSO/2016_page57.csv"))
+monthly_cso_2016 <- monthly_cso_2016[,!(colnames(monthly_cso_2016) %in% c("All", "Duration", "Category"))]
+cso_2016 <- melt(monthly_cso_2016, id.vars = "Regulator", measure.vars = c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"))
+names(cso_2016)[2:3] <- c("Month", "Events")
+cso_2016$Year <- rep(2016, dim(cso_2016)[1])
+cso_monthly <- rbind(cso_2014, cso_2015, cso_2016)
+months <- c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+cso_monthly$Month <- sapply(cso_monthly$Month, function(x) which(months == x))
+cso_monthly$Events <- ifelse(cso_monthly$Events == "*", "", cso_monthly$Events)
+cso_monthly$Events <- as.numeric(cso_monthly$Events)
+cso_monthly_2015 <- subset(cso_monthly, Year==2015)
+cso_monthly_2016 <- subset(cso_monthly, Year==2016)
+clim <- read.csv("csv/climatedata_nyc.csv", stringsAsFactors = FALSE)
+clim_2015 <- subset(clim, Year==2015 & STATION=="USW00014732")
+clim_2016 <- subset(clim, Year==2016 & STATION=="USW00014732")
+plot(clim_2015$Month, clim_2015$PRCP, xlim=c(1,12.6))
+points(cso_monthly_2015$Month+0.5, cso_monthly_2015$Events, col="red")
+head(cso_monthly)
+
+# get coordinates for key regulators
+coords.df <- cbind(keyreg$OUTFALL_ID,data.frame(keyreg@coords))
+head(coords.df)
+colnames(coords.df) <- c("Regulator", "x", "y")
+cso_monthly <- merge(cso_monthly, coords.df, by="Regulator")
+head(cso_monthly)
+
+xy <- data.frame(cso_monthly[,c(5,6)])
+coordinates(xy) <- c("x", "y")
+proj4string(xy) <- proj4string(keyreg)
+spdf <- SpatialPointsDataFrame(coords = xy, data = cso_monthly, proj4string = proj4string(keyreg))
+writeOGR(spdf, dsn="./shapefile", layer="monthly_cso", 
+         overwrite_layer = TRUE,driver = "ESRI Shapefile")

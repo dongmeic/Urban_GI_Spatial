@@ -144,9 +144,9 @@ gi_web$hu12 <- over(gi_web, wbdhu12)$huid
 gi_pts$sewershed <- over(gi_pts, sewershed)$Sewershed
 gi_web$sewershed <- over(gi_web, sewershed)$Sewershed
 gi_web$Borough <- ifelse(gi_web$BOROUGH == "1", "Manhattan", 
-                           ifelse(gi_web$BOROUGH == "2", "Brooklyn",
-                                  ifelse(gi_web$BOROUGH == "3", "Queens",
-                                         ifelse(gi_web$BOROUGH == "4", "Bronx",
+                           ifelse(gi_web$BOROUGH == "2", "Bronx",
+                                  ifelse(gi_web$BOROUGH == "3", "Brooklyn",
+                                         ifelse(gi_web$BOROUGH == "4", "Queens",
                                                 ifelse(gi_web$BOROUGH == "5", "Staten Island", gi_web$BOROUGH)))))
 table(gi_web$Borough)
 gi_web$Borough <- ifelse(gi_web$Borough == "brooklyn", "Brooklyn", gi_web$Borough)
