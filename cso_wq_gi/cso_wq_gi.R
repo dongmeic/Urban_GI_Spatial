@@ -3,6 +3,7 @@ library(shiny)
 library(rgdal)
 library(tmap)
 library(leaflet)
+library(knitr)
 
 # data
 # setwd("/nfs/urbangi-data/spatial_data/output")
@@ -29,6 +30,11 @@ library(leaflet)
 # hwq$hu12 <- over(hwq, WBD_HU12)$huid
 # monthly_cso <- readOGR(dsn = "./shapefile",layer = "monthly_cso", stringsAsFactors = FALSE)
 # csoloc <- readOGR(dsn ="./shapefile",layer="csoloc", stringsAsFactors = FALSE)
+
+knitr::knit(text ='```{r}
+            load(url("https://github.com/dongmeic/Urban_GI_Spatial/blob/master/cso_wq_gi/cso_wq_gi.RData?raw=true"))
+            ```')
+
 # user interface
 choices.br <- c("Select All", unique(gi$Borough))
 choices.gi <- c("Select All", unique(gi$GItypes))
