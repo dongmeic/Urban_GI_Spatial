@@ -101,8 +101,8 @@ hwq.legtitles <- c("Enterococcus (top)", "Dissolved oxygen (bottom)",
 ui <- bootstrapPage(
   title = "Urban GI Project - Map of green infrastructures from NYC DEP",
   tags$style(type = "text/css", "html, body {width:100%;height:100%}"),
-  absolutePanel(top = 20, left = 50, draggable = TRUE, in1, in2, in3, in4, in5, in6, in7, in8),
-  leafletOutput("map", width = "100%", height = "100%")
+  absolutePanel(top = 20, right = 30, draggable = TRUE, in1, in2, in3, in4, in5, in6, in7, in8),
+  leafletOutput("map", width = "70%", height = "100%")
 )
 ## server
 server <- function(input, output, session) {
