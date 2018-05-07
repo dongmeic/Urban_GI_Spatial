@@ -38,9 +38,9 @@ library(knitr)
 # PriorityCSOWatershed <- readOGR(dsn=paste0(infolder, "watershed"),layer="priority_cso_watersheds", stringsAsFactors = FALSE)
 # GIPilotPrograms <- readOGR(dsn = paste0(infolder, "GI"),layer = "GI_pilots", stringsAsFactors = FALSE)
 
-# knitr::knit(text ='```{r}
-#             load(url("https://github.com/dongmeic/Urban_GI_Spatial/blob/master/cso_wq_gi/cso_wq_gi.RData?raw=true"))
-#             ```')
+knitr::knit(text ='```{r}
+            load(url("https://github.com/dongmeic/Urban_GI_Spatial/blob/master/cso_wq_gi/cso_wq_gi.RData?raw=true"))
+            ```')
 
 # user interface
 choices.br <- c("Select All", unique(gi$Borough))
