@@ -382,6 +382,11 @@ clim$Year <- ymdt$year + 1900
 clim$Month <- ymdt$mon + 1
 clim$DOY <- ymdt$yday + 1
 write.csv(clim, "csv/climatedata_nyc.csv", row.names=FALSE)
+clm.spdf <- df2spdf(4,3,"LONGITUDE","LATITUDE",clim)
+writeOGR(clm.spdf, dsn="./shapefile", layer="climate_stations_data", 
+         overwrite_layer = TRUE,driver = "ESRI Shapefile" )
+writeOGR(clm.pts, dsn="./shapefile", layer="climate_stations", 
+         overwrite_layer = TRUE,driver = "ESRI Shapefile" )
 
 # repeated codes here
 # yearly precipitation

@@ -4,36 +4,43 @@ library(rgdal)
 library(tmap)
 library(leaflet)
 library(knitr)
+# library(devtools)
+# devtools::install_github("rstudio/leaflet")
 
-# data
+# # data
 # setwd("/nfs/urbangi-data/spatial_data/output")
-# # save(list = ls(all.names = TRUE), file = "cso_wq_gi.RData", envir = .GlobalEnv)
+# save(list = ls(all.names = TRUE), file = "cso_wq_gi.RData", envir = .GlobalEnv)
 # infolder <- "/nfs/urbangi-data/spatial_data/"
 # crs <- CRS("+proj=lcc +lat_1=40.66666666666666 +lat_2=41.03333333333333
 #            +lat_0=40.16666666666666 +lon_0=-74 +x_0=300000 +y_0=0 +datum=NAD83
 #            +units=us-ft +no_defs +ellps=GRS80 +towgs84=0,0,0")
-# nyc <- readOGR(dsn=paste0(infolder, "BD"),layer="nyad_dis", stringsAsFactors = FALSE)
+# NYCBoundary <- readOGR(dsn=paste0(infolder, "BD"),layer="nyad_dis", stringsAsFactors = FALSE)
 # gi <- readOGR(dsn = "./shapefile", layer ="DEP_GI_withDA_042218", stringsAsFactors = FALSE)
 # names(gi)[which(names(gi)=="mtgtn_2")] <- "MitigatedArea"
 # names(gi)[which(names(gi)=="hu12")] <- "WatershedBoundary"
 # names(gi)[which(names(gi)=="sewrshd")] <- "Sewershed"
 # head(gi@data)
-# contract_area <- readOGR(dsn = paste0(infolder, "GI"), layer ="GI_Contract_Areas_Sept2017", stringsAsFactors = FALSE)
-# head(contract_area)
-# cso_watershed <- readOGR(dsn=paste0(infolder, "CSO"), layer = "combinedsewer_drainage_area", stringsAsFactors = FALSE)
-# WBD_HU12 <- readOGR(dsn = paste0(infolder, "WBDHU"), layer = "wbdhu_12", stringsAsFactors = FALSE)
-# WBD_HU12$huid <- paste0("hu", seq(1, length(WBD_HU12$TNMID)))
-# WBD_HU12 <- spTransform(WBD_HU12, crs)
+# ContractArea <- readOGR(dsn = paste0(infolder, "GI"), layer ="GI_Contract_Areas_Sept2017", stringsAsFactors = FALSE)
+# head(ContractArea)
+# CSOWatershed <- readOGR(dsn=paste0(infolder, "CSO"), layer = "combinedsewer_drainage_area", stringsAsFactors = FALSE)
+# WatershedBoundary <- readOGR(dsn = paste0(infolder, "WBDHU"), layer = "wbdhu_12", stringsAsFactors = FALSE)
+# WatershedBoundary$huid <- paste0("hu", seq(1, length(WatershedBoundary$TNMID)))
+# WatershedBoundary <- spTransform(WatershedBoundary, crs)
 # hwq <- readOGR(dsn="./shapefile",layer = "harbor_water_quality", stringsAsFactors = FALSE)
 # hwq <- spTransform(hwq, crs)
 # hwq$year <- as.numeric(hwq$year)
-# hwq$hu12 <- over(hwq, WBD_HU12)$huid
+# hwq$hu12 <- over(hwq, WatershedBoundary)$huid
 # monthly_cso <- readOGR(dsn = "./shapefile",layer = "monthly_cso", stringsAsFactors = FALSE)
-# csoloc <- readOGR(dsn ="./shapefile",layer="csoloc", stringsAsFactors = FALSE)
+# CSOoutfall <- readOGR(dsn ="./shapefile",layer="csoloc", stringsAsFactors = FALSE)
+# ClimateStations <- readOGR(dsn = "./shapefile",layer = "climate_stations", stringsAsFactors = FALSE)
+# WasteWaterTreatmentPlants <- readOGR(dsn = paste0(infolder, "CSO/wastewater_treatment_plants"),
+#                                      layer = "wastewater_treatment_plants", stringsAsFactors = FALSE)
+# PriorityCSOWatershed <- readOGR(dsn=paste0(infolder, "watershed"),layer="priority_cso_watersheds", stringsAsFactors = FALSE)
+# GIPilotPrograms <- readOGR(dsn = paste0(infolder, "GI"),layer = "GI_pilots", stringsAsFactors = FALSE)
 
-knitr::knit(text ='```{r}
-            load(url("https://github.com/dongmeic/Urban_GI_Spatial/blob/master/cso_wq_gi/cso_wq_gi.RData?raw=true"))
-            ```')
+# knitr::knit(text ='```{r}
+#             load(url("https://github.com/dongmeic/Urban_GI_Spatial/blob/master/cso_wq_gi/cso_wq_gi.RData?raw=true"))
+#             ```')
 
 # user interface
 choices.br <- c("Select All", unique(gi$Borough))
@@ -94,8 +101,8 @@ hwq.legtitles <- c("Enterococcus (top)", "Dissolved oxygen (bottom)",
 ui <- bootstrapPage(
   title = "Urban GI Project - Map of green infrastructures from NYC DEP",
   tags$style(type = "text/css", "html, body {width:100%;height:100%}"),
-  leafletOutput("map", width = "100%", height = "100%"),
-  absolutePanel(top = 20, left = 50, draggable = TRUE, in1, in2, in3, in4, in5, in6, in7, in8)
+  absolutePanel(top = 20, left = 50, draggable = TRUE, in1, in2, in3, in4, in5, in6, in7, in8),
+  leafletOutput("map", width = "100%", height = "100%")
 )
 ## server
 server <- function(input, output, session) {
@@ -114,32 +121,37 @@ server <- function(input, output, session) {
     }
   })
   
-  filteredGIData <- reactive({
+  GreenInfrastructure <- reactive({
     gi <- gi[gi$Borough %in% input$Borough,]
     gi <- gi[gi$GItypes %in% input$GItypes,]
   })
   
-  filteredWQData <- reactive({
+  WaterQuality <- reactive({
     hwq <- hwq[hwq$Key == input$WQkey & hwq$year %in% input$years & hwq$month %in% input$months,]
   })
   
-  filteredKeyRegData <- reactive({
+  KeyRegulators <- reactive({
     monthly_cso <- monthly_cso[monthly_cso$Year %in% input$keyreg_years & monthly_cso$Month %in% input$months,]
   })
   
   output$map <- renderLeaflet({
-    tmap_leaflet(tm_shape(nyc)+tm_borders("grey20")+tm_shape(contract_area)+
-                   tm_polygons("Area_ID", palette="Purples", legend.show = FALSE)+
-                   tm_shape(cso_watershed)+tm_borders("brown")+
-                   tm_shape(WBD_HU12)+tm_borders("blue")+
-                   tm_shape(filteredWQData())+
+    tmap_leaflet(tm_shape(NYCBoundary)+tm_borders("grey20")+tm_shape(ContractArea)+
+                   tm_polygons("Area_ID", palette="Set3", legend.show = FALSE)+
+                   tm_shape(CSOWatershed)+tm_borders("brown")+
+                   tm_shape(WatershedBoundary)+tm_borders("blue")+
+                   tm_shape(PriorityCSOWatershed)+tm_borders(col = "red", lwd = 2)+
+                   tm_shape(WasteWaterTreatmentPlants)+tm_symbols(col = "black", shape = 22, size=0.5)+
+                   tm_shape(ClimateStations)+tm_symbols(col = "cyan", shape = 22, size=0.3)+
+                   tm_shape(WaterQuality())+
                    tm_dots(title = hwq.legtitles[which(hwq.indicators==input$WQkey)], size = 0.2,col="Value", palette = "Blues")+
-                   tm_shape(filteredKeyRegData())+
+                   tm_shape(KeyRegulators())+
                    tm_dots(title = "Monthly CSO events", size=0.1, col="Events", palette = "Reds")+
-                   tm_shape(csoloc)+
+                   tm_shape(CSOoutfall)+
                    tm_dots(title = cso.legtitles[which(cso_oufall_var==input$CSOoutfall)], size=0.05, col=input$CSOoutfall, palette = "RdPu")+
-                   tm_shape(filteredGIData())+
+                   tm_shape(GIPilotPrograms)+tm_symbols(border.col="green", col = "lightgreen", size = 0.4)+
+                   tm_shape(GreenInfrastructure())+
                    tm_dots(title = gi.legtitles[which(colorshow.types==input$colorshow)],size = 0.08, col = input$colorshow))
+    
   })
   
 }
