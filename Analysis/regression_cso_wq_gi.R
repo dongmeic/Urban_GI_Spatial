@@ -43,6 +43,19 @@ csoshed$ID <- paste0("csoshed", seq(1, length(csoshed$OutfallAre)))
 gi_pts$csoshed <- over(gi_pts, csoshed)$ID
 # measure the distance between water quality sampling points with cso outfalls
 
+PriorityCSOWatershed <- readOGR(dsn=paste0(infolder,"watershed"),
+                                layer="priority_cso_watersheds", stringsAsFactors = FALSE)
+PriorityCSOWatershed <- spTransform(PriorityCSOWatershed, crs)
+
+# using the GI data with mitigated area instead
+# the borough information was not correct in the data "DEP_GI_withDA_040618"
+mitigated_area <- readOGR(dsn="./shapefile", layer ="DEP_GI_withDA_040618", stringsAsFactors=FALSE)
+mitigated_area <- spTransform(mitigated_area, lonlat)
+mitigated_area$GIid <- paste0("gi", seq(1, length(mitigated_area$Asst_ID)))
+mitigated_area$longtitude <- mitigated_area@coords[,1]
+mitigated_area$latitude <- mitigated_area@coords[,2]
+mitigated_area <- spTransform(mitigated_area, crs)
+
 earth.dist<-function(lat1,long1,lat2,long2){
   rad <- pi/180
   a1 <- lat1 * rad
@@ -148,9 +161,36 @@ dep_hwq_pts$hu12 <- over(dep_hwq_pts, wbdhu12)$nid
 reg.test("Tra", median, "hu12")
 
 # aggregate SGI density within certain radius from a water quality sampling point
+# git_pts or mitigated_area
 n <- nrow(wq_pts)
+
 for (i in 1:n){
   circle.loc <- as.data.frame(circle.polygon(wq_pts$Long[i], wq_pts$Lat[i], radius=2, units = "km"))
+  ch <- chull(circle.loc)
+  coords <- circle.loc[c(ch, ch[1]),]
+  sp_poly <- SpatialPolygons(list(Polygons(list(Polygon(coords)), ID=1)))
+  proj4string(sp_poly) <- lonlat
+  sp_poly <- spTransform(sp_poly, crs)
+  gi_in <- mitigated_area[!is.na(over(mitigated_area, as(sp_poly, "SpatialPolygons"))),]
+  wq_pts$sgi[i] <- length(gi_in$Asst_ID)
+  wq_pts$mta[i] <- sum(gi_in$mtgtn_2, na.rm = TRUE)
+  if (wq_pts$sgi[i]>1){
+    df <- as.data.frame(table(gi_in$GItypes))
+    freq.max <- max(df$Freq)
+    wq_pts$most[i] <- as.character(df$Var1[which(df$Freq == freq.max)])
+  }else if(wq_pts$sgi[i]==1){
+    wq_pts$most[i] <- gi_in$GItypes
+  }else{
+    wq_pts$most[i] <- NA
+  }
+  cat("\nProcessing water quality sampling point ", i, 
+      "\nFound number of SGI ", wq_pts$sgi[i],
+      "\nThe mitigated area is ", wq_pts$mta[i], 
+      "\nThe most common SGI type is", wq_pts$most[i], "\n")
+}
+
+for (i in 1:n){
+  circle.loc <- as.data.frame(circle.polygon(wq_pts$Long[i], wq_pts$Lat[i], radius=4, units = "km"))
   ch <- chull(circle.loc)
   coords <- circle.loc[c(ch, ch[1]),]
   sp_poly <- SpatialPolygons(list(Polygons(list(Polygon(coords)), ID=1)))
@@ -168,40 +208,41 @@ for (i in 1:n){
     wq_pts$most[i] <- NA
   }
   cat("\nProcessing water quality sampling point ", i, 
-      "\nFound number of SGI ", wq_pts$sgi[i], 
+      "\nFound number of SGI ", wq_pts$sgi[i],
       "\nThe most common SGI type is", wq_pts$most[i], "\n")
 }
 
-spdf <- wq_pts[,c("Station", "Priority", "hu12", "sgi", "most")]
+spdf <- wq_pts[,c("Station", "Priority", "hu12", "sgi", "most", "mta")]
 names(spdf)[1] <- "site"
+# reread dep_hwq_pts
 dep_hwq_pts@data <- merge(dep_hwq_pts@data, spdf@data, by="site")
 
-# add another two variables
-# closest distance to one SGI and the SGI type
-nearest.gi <- function(lat, long){
-  v <- vector()
-  n <- nrow(gi_pts)
-  for (i in 1:n){
-    v[i] <- earth.dist(lat, long, gi_pts$X[i], gi_pts$Y[i])
-  }
-  x <- v[which(v == min(v))]
-  y <- gi_pts$GItypes[sample(which(v == min(v)),1)]
-  return(list(dist=x, type=y))
-}
-coords <- coordinates(wq_pts)
-for (i in 1:n){
-  nearest_gi <- nearest.gi(coords[,1][i], coords[,2][i])
-  wq_pts$dist[i] <- nearest_gi$dist
-  wq_pts$type[i] <- nearest_gi$type
-  cat("\nProcessing water quality sampling point ", i, 
-      "\nThe nearest distance is ", wq_pts$dist[i],
-      "\nThe nearest GI type is ", wq_pts$type[i], "\n")
-}
-
-head(wq_pts)
-spdf <- wq_pts[,c("Station", "dist", "type")]
-names(spdf)[1] <- "site"
-hwq.df <- merge(dep_hwq_pts@data, spdf@data, by="site")
+# # add another two variables (optional)
+# # closest distance to one SGI and the SGI type
+# nearest.gi <- function(lat, long){
+#   v <- vector()
+#   n <- nrow(gi_pts)
+#   for (i in 1:n){
+#     v[i] <- earth.dist(lat, long, gi_pts$X[i], gi_pts$Y[i])
+#   }
+#   x <- v[which(v == min(v))]
+#   y <- gi_pts$GItypes[sample(which(v == min(v)),1)]
+#   return(list(dist=x, type=y))
+# }
+# coords <- coordinates(wq_pts)
+# for (i in 1:n){
+#   nearest_gi <- nearest.gi(coords[,1][i], coords[,2][i])
+#   wq_pts$dist[i] <- nearest_gi$dist
+#   wq_pts$type[i] <- nearest_gi$type
+#   cat("\nProcessing water quality sampling point ", i, 
+#       "\nThe nearest distance is ", wq_pts$dist[i],
+#       "\nThe nearest GI type is ", wq_pts$type[i], "\n")
+# }
+# 
+# head(wq_pts)
+# spdf <- wq_pts[,c("Station", "dist", "type")]
+# names(spdf)[1] <- "site"
+# hwq.df <- merge(dep_hwq_pts@data, spdf@data, by="site")
 
 df <- dep_hwq_pts@data %>% filter(pre2 > 0 & Key == "Tra" & !is.na(Value))
 #df <- hwq.df %>% filter(pre2 > 0 & Key == "Tra")
@@ -211,11 +252,11 @@ dim(df)
 # model with latitude, longitude, year, month, precipitation, SGI density, 
 # distance to the closest density, the closest SGI type, the most frequent SGI type
 # trials in modeling
-model <- lm(log(Value+1)~Lat*Long+as.factor(year)+as.factor(month)+pre7+sgi+dist+type+most, 
-             data=df)
-model <- lm(Value~Lat*Long+pre2+sgi+dist+type+most,data=df)
-model <- lm(Value~Lat*Long+as.factor(year)+pre2+Priority+hu12+sgi+most,data=df)
-
+# model <- lm(log(Value+1)~Lat*Long+as.factor(year)+as.factor(month)+pre7+sgi+dist+type+most, 
+#              data=df)
+# model <- lm(Value~Lat*Long+pre2+sgi+dist+type+most,data=df)
+# model with SGI density, mitigated area, binary variable with priority watershed, pre2, year as factor
+model <- lm(Value~Lat*Long+as.factor(year)+pre2+Priority+sgi+most+mta,data=df)
 model <- step(model)
 summary(model)
 par(mfrow=c(2, 2))
@@ -223,12 +264,43 @@ plot(model)
 par(mfrow=c(1, 1))
 plot(df$sgi, df$Value)
 
-# model with SGI density, mitigated area, ID of the hydrologic unit, binary variable with priority watershed
-# pre2, year as factor
+df.s <- subset(df, Priority==1)
+df.s0 <- subset(df, Priority==0)
+plot(df.s$year, df.s$Value)
+plot(df.s0$year, df.s0$Value)
+plot(df.s$mta, df.s$Value)
+plot(df.s0$mta, df.s0$Value)
+unique(df$site)
 
-PriorityCSOWatershed <- readOGR(dsn=paste0(infolder,"watershed"),
-                                layer="priority_cso_watersheds", stringsAsFactors = FALSE)
-PriorityCSOWatershed <- spTransform(PriorityCSOWatershed, crs)
-mitigated_area <- readOGR(dsn="./shapefile", layer ="DEP_GI_withDA_040618", stringsAsFactors=FALSE)
-mitigated_area <- spTransform(mitigated_area, crs)
+samp <- df$Value[sample(1:5000)]
+shapiro.test(log(samp))
+shapiro.test(log(samp + 1))
+shapiro.test(sqrt(samp))
+hist(samp^0.6)
+shapiro.test(samp^0.5)
 
+mod <- lm(log(Value+ 1) ~ (Lat + Long + sgi + mta)^2 + as.factor(year) + pre2 + Priority + most, df)
+mod<- step(mod)
+summary(mod)
+
+par(mfrow=c(2, 2))
+plot(mod)
+library(mgcv)
+anova(mod)
+
+add.mod <- gam(Value ~ s(Lat) + s(Long) + s(sgi) + s(mta) + as.factor(year) + s(pre2) + Priority + most, 
+               data=df)
+par(mfrow=c(2,3))
+plot(add.mod)
+predictors <- which(names(df) %in% c('Lat','Long', 'pre2', 'sgi', 'mta'))
+pairs(df[,predictors])
+pairs(df[,predictors], pch=16, col=rgb(0,0,0, 0.1))
+pairs(df[,predictors], pch=16, col=rgb(0,0,0, 0.1), panel=panel.smooth())
+length(predictors)
+preds <- names(df[predictors])
+
+cc <- df[complete.cases(df), ]
+for (p in preds) {
+  plot(df$Value~df[, p], pch=16, col=rgb(0,0,0,0.1))
+  lines(lowess(cc$Value~cc[, p]), col=2)
+}
