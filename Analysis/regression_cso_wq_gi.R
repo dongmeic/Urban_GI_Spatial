@@ -4,6 +4,7 @@
 # libraries
 library(rgdal)
 library(swfscMisc)
+library(mgcv)
 
 # global settings
 setwd("/nfs/urbangi-data/spatial_data/output")
@@ -164,8 +165,10 @@ reg.test("Tra", median, "hu12")
 # git_pts or mitigated_area
 n <- nrow(wq_pts)
 
+r <- 4
 for (i in 1:n){
-  circle.loc <- as.data.frame(circle.polygon(wq_pts$Long[i], wq_pts$Lat[i], radius=2, units = "km"))
+  # try radius 2, 4, 8, 16
+  circle.loc <- as.data.frame(circle.polygon(wq_pts$Long[i], wq_pts$Lat[i], radius=r, units = "km"))
   ch <- chull(circle.loc)
   coords <- circle.loc[c(ch, ch[1]),]
   sp_poly <- SpatialPolygons(list(Polygons(list(Polygon(coords)), ID=1)))
@@ -190,7 +193,8 @@ for (i in 1:n){
 }
 
 for (i in 1:n){
-  circle.loc <- as.data.frame(circle.polygon(wq_pts$Long[i], wq_pts$Lat[i], radius=4, units = "km"))
+  # try radius 2, 4, 8, 16
+  circle.loc <- as.data.frame(circle.polygon(wq_pts$Long[i], wq_pts$Lat[i], radius=r, units = "km"))
   ch <- chull(circle.loc)
   coords <- circle.loc[c(ch, ch[1]),]
   sp_poly <- SpatialPolygons(list(Polygons(list(Polygon(coords)), ID=1)))
@@ -214,8 +218,8 @@ for (i in 1:n){
 
 spdf <- wq_pts[,c("Station", "Priority", "hu12", "sgi", "most", "mta")]
 names(spdf)[1] <- "site"
-# reread dep_hwq_pts
-dep_hwq_pts@data <- merge(dep_hwq_pts@data, spdf@data, by="site")
+df <- dep_hwq_pts@data
+df <- merge(df, spdf@data, by="site")
 
 # # add another two variables (optional)
 # # closest distance to one SGI and the SGI type
@@ -244,63 +248,72 @@ dep_hwq_pts@data <- merge(dep_hwq_pts@data, spdf@data, by="site")
 # names(spdf)[1] <- "site"
 # hwq.df <- merge(dep_hwq_pts@data, spdf@data, by="site")
 
-df <- dep_hwq_pts@data %>% filter(pre2 > 0 & Key == "Tra" & !is.na(Value))
-#df <- hwq.df %>% filter(pre2 > 0 & Key == "Tra")
-#hist(log(df$Value))
-hist(df$Value)
-dim(df)
+# value options: "Ent_top", "DO_top", "FC_top", "Tra"
+df.s <- df %>% filter(pre2 > 0 & Key == "DO_top" & !is.na(Value))
+par(mfrow=c(1, 1))
+hist(df.s$Value)
+summary(df.s$Value)
+dim(df.s)
 # model with latitude, longitude, year, month, precipitation, SGI density, 
 # distance to the closest density, the closest SGI type, the most frequent SGI type
 # trials in modeling
 # model <- lm(log(Value+1)~Lat*Long+as.factor(year)+as.factor(month)+pre7+sgi+dist+type+most, 
-#              data=df)
-# model <- lm(Value~Lat*Long+pre2+sgi+dist+type+most,data=df)
+#              data=df.s)
+# model <- lm(Value~Lat*Long+pre2+sgi+dist+type+most,data=df.s)
 # model with SGI density, mitigated area, binary variable with priority watershed, pre2, year as factor
-model <- lm(Value~Lat*Long+as.factor(year)+pre2+Priority+sgi+most+mta,data=df)
+model <- lm(Value~Lat*Long+as.factor(year)+pre2+Priority+sgi+most+mta,data=df.s)
 model <- step(model)
 summary(model)
 par(mfrow=c(2, 2))
 plot(model)
 par(mfrow=c(1, 1))
-plot(df$sgi, df$Value)
-
-df.s <- subset(df, Priority==1)
-df.s0 <- subset(df, Priority==0)
-plot(df.s$year, df.s$Value)
-plot(df.s0$year, df.s0$Value)
+plot(df.s$sgi, df.s$Value)
 plot(df.s$mta, df.s$Value)
-plot(df.s0$mta, df.s0$Value)
-unique(df$site)
 
-samp <- df$Value[sample(1:5000)]
+df.s.s <- subset(df.s, Priority==1)
+df.s.s0 <- subset(df.s, Priority==0)
+plot(df.s.s$year, df.s.s$Value)
+plot(df.s.s0$year, df.s.s0$Value)
+plot(df.s.s$mta, df.s.s$Value)
+plot(df.s.s0$mta, df.s.s0$Value)
+#unique(df.s$site)
+
+# to test normality of the response variable
+samp <- df.s$Value[sample(1:5000)]
+shapiro.test(samp)
 shapiro.test(log(samp))
 shapiro.test(log(samp + 1))
 shapiro.test(sqrt(samp))
+hist(log(samp + 1))
 hist(samp^0.6)
 shapiro.test(samp^0.5)
 
-mod <- lm(log(Value+ 1) ~ (Lat + Long + sgi + mta)^2 + as.factor(year) + pre2 + Priority + most, df)
+mod <- lm(log(Value+ 1) ~ (Lat + Long + sgi + mta)^2 + as.factor(year) + pre2 + Priority + most, df.s)
+#mod <- glm((Value+1) ~ (Lat + Long + sgi + mta)^2 + as.factor(year) + pre2 + Priority + most, df.s, family="Gamma")
 mod<- step(mod)
+# deviance: 1-(Residual deviance/Residual deviance) 
 summary(mod)
 
 par(mfrow=c(2, 2))
 plot(mod)
-library(mgcv)
 anova(mod)
-
+# to check the relationships between predictors and the response variable to suggest data transformation
 add.mod <- gam(Value ~ s(Lat) + s(Long) + s(sgi) + s(mta) + as.factor(year) + s(pre2) + Priority + most, 
-               data=df)
+               data=df.s)
 par(mfrow=c(2,3))
 plot(add.mod)
-predictors <- which(names(df) %in% c('Lat','Long', 'pre2', 'sgi', 'mta'))
-pairs(df[,predictors])
-pairs(df[,predictors], pch=16, col=rgb(0,0,0, 0.1))
-pairs(df[,predictors], pch=16, col=rgb(0,0,0, 0.1), panel=panel.smooth())
+# to look at the interactions between variables and nonlinear relationships
+predictors <- which(names(df.s) %in% c('Lat','Long', 'pre2', 'sgi', 'mta'))
+# pairs(df.s[,predictors])
+pairs(df.s[,predictors], pch=16, col=rgb(0,0,0, 0.1))
+pairs(df.s[,predictors], pch=16, col=rgb(0,0,0, 0.1), panel=panel.smooth)
 length(predictors)
-preds <- names(df[predictors])
+preds <- names(df.s[predictors])
 
-cc <- df[complete.cases(df), ]
+
+cc <- df.s[complete.cases(df.s), ]
+par(mfrow=c(2, 3))
 for (p in preds) {
-  plot(df$Value~df[, p], pch=16, col=rgb(0,0,0,0.1))
+  plot(df.s$Value~df.s[, p], pch=16, col=rgb(0,0,0,0.1))
   lines(lowess(cc$Value~cc[, p]), col=2)
 }
