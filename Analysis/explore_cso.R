@@ -385,3 +385,16 @@ proj4string(xy) <- proj4string(keyreg)
 spdf <- SpatialPointsDataFrame(coords = xy, data = cso_monthly, proj4string = proj4string(keyreg))
 writeOGR(spdf, dsn="./shapefile", layer="monthly_cso", 
          overwrite_layer = TRUE,driver = "ESRI Shapefile")
+
+# updated on August 19th, 2018
+# monthly CSO
+monthly_cso <- readOGR(dsn="./shapefile", layer="monthly_cso", stringsAsFactors=FALSE)
+head(monthly_cso)
+plot(monthly_cso$Month, monthly_cso$Events)
+cso.m.df <- as.data.frame(monthly_cso)
+cso.m.df$Year <- as.character(cso.m.df$Year)
+cso.m.df$Month <- formatC(cso.m.df$Month, flag = "0", digits = 1)
+png(paste0("figure/cso_events_monthly.png"), width=8, height=7, units="in", res=300)
+ggplot(data=cso.m.df)+ geom_boxplot(aes(Month, Events, color=Year))+
+  labs(title="Combined sewer overflows in NYC")
+dev.off()
