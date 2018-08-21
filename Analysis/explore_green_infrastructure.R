@@ -232,5 +232,3 @@ for (i in 1:n){
   dev.off()
   print(i)
 }
-
-

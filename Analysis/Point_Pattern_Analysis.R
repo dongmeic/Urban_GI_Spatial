@@ -138,12 +138,18 @@ gi.df <- remove.duplicates(gi.df)
 # water quality data
 hwq.spdf <- readOGR("./shapefile", layer="hwq_pts_in", stringsAsFactors = FALSE)
 
+priority.cso.watersheds <- readOGR(dsn = paste0(infolder, "watershed"), 
+                                   layer = "priority_cso_watersheds", stringsAsFactors = FALSE)
+priority.cso.watersheds <- spTransform(priority.cso.watersheds, crs)
+
 # mean center and standard distance
-png("figure/mean_center.png", width=9, height=8, units="in", res=300)
+png("figure/mean_center_prior.png", width=9, height=8, units="in", res=300)
 par(xpd=TRUE,mfrow=c(1,1),mar=c(0.5,0.5,2.5,0.5))
-plot(nyadwi, bord="white", main="Stormwater green infrastructure in New York City")
+#plot(nyadwi, bord="white", main="Stormwater green infrastructure in New York City")
+plot(nyadwi, bord="white", main="")
 plot(hwq.spdf, pch=19, col="blue", add=T)
-plot(tract, bord="dimgrey", add=T)
+#plot(tract, bord="dimgrey", add=T)
+plot(priority.cso.watersheds, bord="dimgrey", add=T)
 plot(nyadwi, lwd=1.5, bord="dimgrey", add=T)
 plot(gi.spdf, col=rgb(0,0.8,0,0.6), cex=.3, pch=16, add=T)
 points(cbind(mc_sd(gi.spdf)[[1]][1], mc_sd(gi.spdf)[[1]][2]), pch='*', col='darkgreen', cex=4)

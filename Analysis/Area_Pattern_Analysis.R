@@ -69,7 +69,7 @@ crs <- CRS("+proj=lcc +lat_1=40.66666666666666 +lat_2=41.03333333333333
 lonlat <- CRS("+proj=longlat +datum=NAD83")
 
 # input data
-#hwq_pts <- readOGR(dsn="./shapefile", layer="hwq_pts_in", stringsAsFactors = FALSE)
+#hwq_pts <- readOGR(dsn="./GI", layer="hwq_pts_in", stringsAsFactors = FALSE)
 wq.df <- read.csv("csv/wq_pts_all.csv", stringsAsFactors = FALSE)
 # remove the less symbol
 gsub("<", "", wq.df)
@@ -78,8 +78,9 @@ coordinates(wq.df) <- ~lon+lat
 proj4string(wq.df) <- lonlat
 wq.spdf <- spTransform(wq.df, crs)
 wq.spdf.u <- remove.duplicates(wq.spdf)
+hwq.spdf <- readOGR(dsn="./shapefile", layer="harbor_water_quality", stringsAsFactors = FALSE)
+hwq.spdf <- spTransform(hwq.spdf, crs)
 
-sewershed
 sewershed <- readOGR(dsn = paste0(infolder, "CSO"), layer ="Sewershed", stringsAsFactors = FALSE)
 #reference: https://gis.stackexchange.com/questions/163445/r-solution-for-topologyexception-input-geom-1-is-invalid-self-intersection-er
 #sewershed <- gSimplify(sewershed, tol = 0.00001)
@@ -89,6 +90,7 @@ combined <- readOGR(dsn = paste0(infolder, "CSO"), layer ="combinedsewer_drainag
 #combined <- gSimplify(combined, tol = 0.00001)
 combined <- gBuffer(combined, byid=TRUE, width=0)
 gIsValid(combined, reason = T)
+# City Council Districts (water area included)
 nyccwi <- readOGR(dsn = paste0(infolder, "BD"), layer ="nyccwi", stringsAsFactors = FALSE)
 gIsValid(nyccwi, reason = T)
 
@@ -103,12 +105,20 @@ points(wq.spdf, pch=20, col='blue')
 # pts.poly@data$pids <- 1:nrow(pts.poly) 
 # head(pts.poly@data)
 ## use over function instead
-pts.poly <- over(wq.spdf, nyccwi[,"CounDist"])
-gi.spdf <- readOGR(dsn = "./shapefile", layer ="gi_pts_in", stringsAsFactors = FALSE)
+#pts.poly <- over(wq.spdf, nyccwi[,"CounDist"])
+pts.poly <- over(hwq.spdf, nyccwi[,"CounDist"])
+gi.spdf <- readOGR(dsn="/nfs/urbangi-data/spatial_data/GI", layer="GIsites_all_noreplicates_033118", stringsAsFactors=FALSE)
+gi.spdf <- spTransform(gi.spdf, crs)
 gi.pts.poly <- over(gi.spdf, nyccwi[,"CounDist"])
-wq.spdf$CounDist <- pts.poly$CounDist
+mitigated_area <- readOGR(dsn="./shapefile", layer ="DEP_GI_withDA_040618", stringsAsFactors=FALSE)
+mitigated_area <- spTransform(mitigated_area, crs)
+mitigated_area.pts <- over(mitigated_area, nyccwi[,"CounDist"])
+#wq.spdf$CounDist <- pts.poly$CounDist
+hwq.spdf$CounDist <- pts.poly$CounDist
 gi.spdf$CounDist <- gi.pts.poly$CounDist
-wq.spdf$pids <- 1:nrow(wq.spdf)
+mitigated_area$CounDist <- mitigated_area.pts$CounDist
+#wq.spdf$pids <- 1:nrow(wq.spdf)
+hwq.spdf$pids <- 1:nrow(hwq.spdf)
 gi.spdf$pids <- 1:nrow(gi.spdf)
 # aggregate data by polygon
 cpts <- aggregate(pids ~ CounDist, data = wq.spdf@data, FUN = function(x){y <- length(x); return(y)})
@@ -116,9 +126,15 @@ colnames(cpts)[2] <- "cpts"
 gicpts <- aggregate(pids ~ CounDist, data = gi.spdf@data, FUN = function(x){y <- length(x); return(y)})
 colnames(gicpts)[2] <- "gicpts"
 ment <- aggregate(ent ~ CounDist, data = wq.spdf@data, FUN = mean)
+mitiarea <- aggregate(mtgtn_2 ~ CounDist, data = mitigated_area@data, FUN = sum)
+hwq <- aggregate(Value ~ CounDist, data = subset(hwq.spdf, Key=="Tra"), FUN = mean)
 nyccwi@data <- merge(nyccwi@data, cpts, by="CounDist", all=T)
 nyccwi@data <- merge(nyccwi@data, ment, by="CounDist", all=T)
 nyccwi@data <- merge(nyccwi@data, gicpts, by="CounDist", all=T)
+nyccwi@data <- merge(nyccwi@data, mitiarea, by="CounDist", all=T)
+nyccwi@data <- merge(nyccwi@data, hwq, by="CounDist", all=T)
+# remove repeated
+# nyccwi@data <- nyccwi@data[, -which(names(df) %in% c("gicpts.x","gicpts.y"))]
 #write.csv(nyccwi@data, "wq_data_cc.csv", row.names=FALSE)
 head(nyccwi@data)
 nyccwi@data$gidens <- nyccwi@data$gicpts/sum(nyccwi@data$gicpts)*1000
@@ -135,6 +151,7 @@ plot(nyccwi.nb2, coordinates(nyccwi), add=TRUE, col='yellow')
 
 nyccwi.lw <- nb2listw(nyccwi.nb2)
 
+ent.lagged.means <- lag.listw(nyccwi.lw, nyccwi$ent, NAOK=TRUE)
 gidens.lagged.means <- lag.listw(nyccwi.lw, nyccwi$gidens, NAOK=TRUE)
 # replace NAs with zeros?
 #nyccwi$ent[is.na(nyccwi$ent)] <- 0
@@ -145,11 +162,13 @@ choropleth(nyccwi, nyccwi$ent, shades)
 shades <- auto.shading(nyccwi$gidens, n=6, cols = brewer.pal(5, 'Blues'))
 choropleth(nyccwi, nyccwi$gidens, shades)
 
+par(xpd=FALSE,mfrow=c(1,1),mar=c(4.5,4.5,2.5,0.5))
 plot(nyccwi$ent, ent.lagged.means, asp=1, xlim=range(na.omit(nyccwi$ent)), ylim=range(na.omit(nyccwi$ent)))
 abline(a=0,b=1)
 abline(v=mean(na.omit(nyccwi$ent)),lty=2)
 abline(h=mean(na.omit(ent.lagged.means)),lty=2)
 
+par(xpd=FALSE,mfrow=c(1,1),mar=c(4.5,4.5,2.5,0.5))
 plot(nyccwi$gidens, gidens.lagged.means, asp=1, xlim=range(na.omit(nyccwi$gidens)), ylim=range(na.omit(nyccwi$gidens)))
 abline(a=0,b=1)
 abline(v=mean(na.omit(nyccwi$gidens)),lty=2)
