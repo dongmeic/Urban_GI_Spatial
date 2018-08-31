@@ -299,3 +299,13 @@ par(xpd=FALSE,mfrow=c(1,2),mar=c(0.5,0.5,2.5,0.5))
 mapping(nyccwi_lI, 'PRGn', "lisa", 5, "Local Moran's I", "Equity index")
 mapping(nyccwi_lI, 'PuRd', "pvalue", 5, "Local p-value", "Equity index")
 dev.off()
+
+# using census tract instead
+# using connected features in Brooklyn only
+# having troulbes uploading files to Pydio
+nycad <- readOGR(dsn= paste0(infolder, "BD"), layer ="nyc_bound", stringsAsFactors = FALSE)
+#Brooklyn <- nycad[nycad$boro_name=="Brooklyn",]
+nyccwi.nb2 <- poly2nb(equity_index, queen=FALSE)
+nyccwi.lw <- nb2listw(nyccwi.nb2)
+moran.test(equity_index$GIq_ndx, nyccwi.lw, na.action=na.exclude, zero.policy = TRUE)
+
