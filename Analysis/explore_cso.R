@@ -156,28 +156,26 @@ wwtp <- spTransform(wwtp, crs)
 # priority.cso.watersheds <- readOGR(dsn = paste0(infolder, "watershed"), 
 #                                    layer = "priority_cso_watersheds", stringsAsFactors = FALSE)
 # priority.outfalls <- priority.cso.watersheds$outfall
-
 png("figure/CSO_outfalls.png", width=8, height=8, units="in", res=300)
-plot(bound, bord="white", main="Combined sewer overflow outfalls in NYC")
-plot(wbdhu12, add=T)
-#plot(cso_shed, bord="grey32", add=T)
-plot(wq_pts, pch=16, cex=1.2, col=rgb(0,0,0.8,0.8), add=T)
-plot(keyreg, pch=7, cex=1.5, add=T)
-plot(wwtp, pch=2, cex=1.5, add=T)
+plot(bound, main="Combined sewer overflow outfalls in NYC")
+#plot(wbdhu12, add=T)
+plot(cso.shed, bord="grey58", add=T)
+plot(wq_pts, pch=16, cex=1.2, col=rgb(0,0,0.8,0.3), add=T)
 plot(csoloc, pch=16, cex=0.8, col=rgb(0.8,0,0,0.8), add=T)
+plot(wwtp, pch=2, cex=1.5, add=T)
+plot(keyreg, pch=7, cex=1.5, add=T)
 plot(greinfr, pch=20, cex=0.3, col=rgb(0,0.8,0,0.8), add=T)
-plot(pilots, pch=1, cex=1.5, col=rgb(0,0.3,0), add=T)
-plot(bound, bord="grey58", add=T)
+plot(pilots, pch=1, cex=1.2, col=rgb(0,0.3,0), add=T)
 northarrow(c(925050,195000),3500)
 add.scale()
 legend(920000, 270000, bty="n",
        pch=c(7,2,1,16,16,20), 
-       col=c(rgb(0,0,0),rgb(0,0,0),rgb(0,1,0),rgb(0,0,0.8,0.8),rgb(0.8,0,0,0.8),rgb(0,0.8,0,0.8)), 
-       pt.cex=c(1.5,1.5,1.5,1.2,0.8,0.3),
+       col=c(rgb(0,0,0),rgb(0,0,0),rgb(0,1,0),rgb(0,0,0.8,0.3),rgb(0.8,0,0,0.8),rgb(0,0.8,0,0.8)), 
+       pt.cex=c(1.5,1.5,1.2,1.2,0.8,0.3),
        cex = 1.2,
-       legend=c("Key regulators","WWTP","GI pilot sites", "WQ sites", "CSO outfalls", "GI sites"))
+       legend=c("Key regulators","WWTP","GI pilot sites", "WQ sampling sites", "CSO outfalls", "GI sites"))
 legend(915000, 230000, bty="n",lty = 1, col=c("black", "grey58"),
-       legend = c("WBD HU12", "NYC"))
+       legend = c("NYC", "CSO-shed"))
 dev.off()
 
 # CSO volume and events by sewershed
@@ -203,7 +201,8 @@ Sewershed <- merge(Sewershed, cso_sewershed, by="Sewershed")
 outfalls <- c("26-001", "26-002", "26-003", "26-004", "26-005")
 csoloc$outfall <- ifelse(csoloc$outfall_id %in% outfalls, paste0("26W",substrRight(csoloc$outfall_id,4)), 
                          csoloc$outfall_id)
-writeOGR(csoloc, dsn="./shapefile", layer="csoloc", overwrite_layer = TRUE, driver = "ESRI Shapefile")
+# writeOGR(csoloc, dsn="./shapefile", layer="csoloc", overwrite_layer = TRUE, driver = "ESRI Shapefile")
+csoloc <- readOGR(dsn="./shapefile", layer="csoloc", stringsAsFactors=FALSE)
 cso.shed <- merge(cso.shed, csoloc, by="outfall")
 
 
