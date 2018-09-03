@@ -207,8 +207,9 @@ ggplot(gi_web@data, aes(x=year, fill=GItypes)) +
 ggsave(paste0("figure/GI_year_borough.png"), width=6, height=5, units="in")
 
 # map all GI types
-type.names <- c("Bioswales", "Bluebelts","Detention","Green roofs",
-                "Green streets","Permeable","Rain barrels", "Rain gardens")
+type.names <- c("Bioswales", "Bluebelts", "Detention","Green roofs",
+                "Green streets", "Permeable", "Rain barrels", "Rain gardens")
+cols <- c('#ff7f00', '#1f78b4', '#a6cee3', '#b2df8a', '#33a02c', '#fdbf6f', '#fb9a99', '#e31a1c')
 n <- length(type.names)
 for (i in 1:n){
   png(paste0("figure/map_",type.names[i],".png"), width=8, height=8, units="in", res=300)
@@ -232,3 +233,20 @@ for (i in 1:n){
   dev.off()
   print(i)
 }
+# combined all figures together
+GIsites_all <- readOGR(dsn="./shapefile", layer="GIsites_all", stringsAsFactors = FALSE)
+plot.gitypes <- function(gitype, color){
+  plot(bound, bord="white", main=gitype)
+  plot(GIsites_all[GIsites_all$GItypes != gitype,], pch=16, cex=1.2, col="grey90", add=T)
+  plot(GIsites_all[GIsites_all$GItypes == gitype,], pch=16, cex=1.2, col=color, add=T)
+  plot(pilots, pch=1, cex=1.2, col='red', add=T)
+  plot(bound, bord="grey58", add=T)
+}
+
+png(paste0("figure/map_gitypes.png"), width=10, height=6, units="in", res=300)
+par(mfrow=c(2,4),mar=c(0,0,1,0))
+for (i in 1:n){
+  plot.gitypes(type.names[i], cols[i])
+  print(i)
+}
+dev.off()

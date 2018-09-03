@@ -44,7 +44,7 @@ add.northarrow <- function(){
 }
 
 add.scale <- function(){
-  GISTools::map.scale(1040000,140000,19685.083,"km",3,2,sfcol='brown')
+  GISTools::map.scale(1040000,120000,19685.083,"km",3,2,sfcol='brown')
 } #19685 feet 0.5 inches equals to 6 km
 
 mc_sd <- function(spdf){
@@ -143,15 +143,17 @@ priority.cso.watersheds <- readOGR(dsn = paste0(infolder, "watershed"),
 priority.cso.watersheds <- spTransform(priority.cso.watersheds, crs)
 
 # mean center and standard distance
+wbdhu12 <- readOGR(dsn = paste0(infolder, "WBDHU"), layer = "wbdhu_12", stringsAsFactors = FALSE)
+wbdhu12 <- spTransform(wbdhu12, crs)
 png("figure/mean_center_prior.png", width=9, height=8, units="in", res=300)
 par(xpd=TRUE,mfrow=c(1,1),mar=c(0.5,0.5,2.5,0.5))
 #plot(nyadwi, bord="white", main="Stormwater green infrastructure in New York City")
 plot(nyadwi, bord="white", main="")
-plot(city, lty="dashed", lwd=1.5, bord="dimgrey", add=T)
+plot(city, lty="dotted", lwd=1.5, bord="dimgrey", add=T)
 plot(hwq.spdf, pch=19, col="blue", add=T)
 #plot(tract, bord="dimgrey", add=T)
-plot(priority.cso.watersheds, bord="dimgrey", add=T)
-plot(nyadwi, lwd=1.5, bord="dimgrey", add=T)
+plot(priority.cso.watersheds, bord="red", add=T)
+plot(wbdhu12, lwd=1.5, bord="dimgrey", add=T)
 plot(gi.spdf, col=rgb(0,0.8,0,0.6), cex=.5, pch=16, add=T)
 points(cbind(mc_sd(gi.spdf)[[1]][1], mc_sd(gi.spdf)[[1]][2]), pch='*', col='darkgreen', cex=4)
 lines(cbind(mc_sd(gi.spdf)[[2]], mc_sd(gi.spdf)[[3]]), col='darkgreen', lwd=2, lty=2)
