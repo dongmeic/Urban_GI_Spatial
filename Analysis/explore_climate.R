@@ -234,7 +234,7 @@ clim <- clim[clim$STATION == "USC00308721",]
 # yearly precipitation
 ggplot(clim[clim$Year < 2018 & clim$Year > 2007,]) + 
   geom_bar(aes(as.character(Year), PRCP, fill = as.factor(Month)), 
-           position = "stack", stat = "summary", fun.y = mean) + 
+           position = "stack", stat = "summary", fun.y = sum) + 
   scale_fill_manual(values=month.colors) +
   labs(x="Year", y="Precipitation (mm)", fill="Month", 
        title="Annual precipitation in NYC",
@@ -244,10 +244,10 @@ ggsave(paste0("figure/precp_year.png"), width=8, height=5, units="in")
 # monthly precipitation
 ggplot(clim[clim$Year > 2007 & clim$Year < 2018, ]) + 
   geom_bar(aes(formatC(Month, width=2, flag="0"), PRCP, fill=as.character(Month)), 
-           stat = "summary", fun.y = mean)+
+           stat = "summary", fun.y = sum)+
   scale_fill_manual(values=month.colors)+
   geom_point(aes(formatC(Month, width=2, flag="0"), PRCP, size=2, colour=as.character(Year)),
-             stat = "summary", fun.y = mean)+
+             stat = "summary", fun.y = sum)+
   scale_colour_manual(values=year.colors)+
   scale_size(guide = "none")+
   labs(x="Month", y="Precipitation (mm)", fill="Month", colour="Year",

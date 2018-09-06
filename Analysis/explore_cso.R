@@ -11,6 +11,7 @@ library(RColorBrewer)
 library(classInt)
 library(ggplot2)
 library(reshape)
+library(grid)
 
 # projection and roi(region of interest)
 crs <- CRS("+proj=lcc +lat_1=40.66666666666666 +lat_2=41.03333333333333 
@@ -54,6 +55,8 @@ add.northarrow <- function(){
 add.scale <- function(){
   GISTools::map.scale(1040000,125000,19685.083,"km",3,2,sfcol='brown')
 } #19685 feet 0.5 inches equals to 6 km
+
+vplayout <- function(x, y) viewport(layout.pos.row = x, layout.pos.col = y)
 
 quick.map <- function(spdf,pspdf,var,color,legend.title,outname) {
   nclr <- 5
@@ -157,6 +160,7 @@ wwtp <- spTransform(wwtp, crs)
 #                                    layer = "priority_cso_watersheds", stringsAsFactors = FALSE)
 # priority.outfalls <- priority.cso.watersheds$outfall
 png("figure/CSO_outfalls.png", width=8, height=8, units="in", res=300)
+par(xpd=TRUE,mfrow=c(1,1),mar=c(0.5,0.5,2.5,0.5))
 plot(bound, main="Combined sewer overflow outfalls in NYC")
 #plot(wbdhu12, add=T)
 plot(cso.shed, bord="grey58", add=T)
@@ -173,7 +177,7 @@ legend(920000, 270000, bty="n",
        col=c(rgb(0,0,0),rgb(0,0,0),rgb(0,1,0),rgb(0,0,0.8,0.3),rgb(0.8,0,0,0.8),rgb(0,0.8,0,0.8)), 
        pt.cex=c(1.5,1.5,1.2,1.2,0.8,0.3),
        cex = 1.2,
-       legend=c("Key regulators","WWTP","GI pilot sites", "WQ sampling sites", "CSO outfalls", "GI sites"))
+       legend=c("CSO key regulators","WWTP","SGI pilot sites", "WQ sampling sites", "CSO outfalls", "SGI locations"))
 legend(915000, 230000, bty="n",lty = 1, col=c("black", "grey58"),
        legend = c("NYC", "CSO-shed"))
 dev.off()
@@ -308,8 +312,6 @@ ggplot(data=cso.vol.df)+ geom_point(aes(SGIdens, Events, color=Year))+
   labs(x="SGI density",title="Combined sewer overflows in NYC")
 ggsave(paste0("figure/cso_events_SGIdens.png"), width=4, height=3, units="in")
 
-cor.test(~SGIdens+Volume, cso.vol.df)
-cor.test(~SGIdens+Events, cso.vol.df)
 write.csv(cso.vol.df, "CSV/cso_vol_events_sgi.csv", row.names = F)
 
 # use managed imperviousness instead of SGI density
@@ -334,8 +336,34 @@ ggplot(data=cso.mitigated.df)+ geom_point(aes(MitigatedArea, Events, color=Year)
   labs(x="SGI mitigated area", title="Combined sewer overflows in NYC")
 ggsave(paste0("figure/cso_events_mitigated.png"), width=4, height=3, units="in")
 
-cor.test(~MitigatedArea+Volume, data=cso.mitigated.df)
-cor.test(~MitigatedArea+Events, data=cso.mitigated.df)
+# combine above both plots (using density instead of levels)
+cols <- c('#ffffd4','#fed98e','#fe9929','#cc4c02')
+test <- cor.test(~SGIdens+Volume, cso.vol.df)
+p1 <- ggplot(data=cso.vol.df)+ geom_point(aes(SGIdens, Volume, color=Year))+
+  scale_color_manual(values=cols)+
+  labs(x="SGI density",title=paste0("Correlation: r = ",
+                                    format(as.numeric(test$estimate), digits = 2),", p-value = ",format(as.numeric(test$p.value), digits = 2)))
+test <- cor.test(~SGIdens+Events, cso.vol.df)
+p2 <- ggplot(data=cso.vol.df)+ geom_point(aes(SGIdens, Events, color=Year))+
+  scale_color_manual(values=cols)+
+  labs(x="SGI density",title=paste0("Correlation: r = ",
+                                    format(as.numeric(test$estimate), digits = 2),", p-value = ",format(as.numeric(test$p.value), digits = 2)))
+test <- cor.test(~MitigatedArea+Volume, data=cso.mitigated.df)
+p3 <- ggplot(data=cso.mitigated.df)+ geom_point(aes(MitigatedArea, Volume, color=Year))+scale_color_manual(values=cols)+
+  labs(x="SGI mitigated area", title=paste0("Correlation: r = ", format(as.numeric(test$estimate), digits = 2),", p-value = ",format(as.numeric(test$p.value), digits = 2)))
+test <- cor.test(~MitigatedArea+Events, data=cso.mitigated.df)
+p4 <- ggplot(data=cso.mitigated.df)+ geom_point(aes(MitigatedArea, Events, color=Year))+scale_color_manual(values=cols)+
+  labs(x="SGI mitigated area", title=paste0("Correlation: r = ", format(as.numeric(test$estimate), digits = 2),", p-value = ",format(as.numeric(test$p.value), digits = 2)))
+
+png(paste0("figure/sgi_cso.png"), width=12, height=8, units="in", res=300)
+par(mar=c(2,2,2,2))
+grid.newpage()
+pushViewport(viewport(layout = grid.layout(2, 2)))
+print(p1, vp = vplayout(1, 1))
+print(p2, vp = vplayout(1, 2))
+print(p3, vp = vplayout(2, 1))
+print(p4, vp = vplayout(2, 2))
+dev.off()
 
 # select a particular year
 cor.test(~MitigatedArea+Volume, data=subset(cso.mitigated.df, Year==2015))
@@ -397,3 +425,20 @@ png(paste0("figure/cso_events_monthly.png"), width=8, height=7, units="in", res=
 ggplot(data=cso.m.df)+ geom_boxplot(aes(Month, Events, color=Year))+
   labs(title="Combined sewer overflows in NYC")
 dev.off()
+
+# check monthly precipitation and CSO events
+cso.events.2015 <- subset(cso.m.df, Year==2015)
+cso.events.2016 <- subset(cso.m.df, Year==2016)
+events.2015 <- aggregate(Events~Month, cso.events.2015, sum)
+events.2016 <- aggregate(Events~Month, cso.events.2016, sum)
+clim <- read.csv("csv/climate_date.csv")
+clim <- clim[clim$STATION == "USC00308721",]
+clim <- clim[clim$Year == 2015 | clim$Year == 2016,]
+clim.prcp.2015 <- subset(clim, Year==2015)
+clim.prcp.2016 <- subset(clim, Year==2016)
+prcp.2015 <- aggregate(PRCP ~ Month, clim.prcp.2015, sum)
+prcp.2016 <- aggregate(PRCP ~ Month, clim.prcp.2016, sum)
+plot(events.2015$Month, events.2015$Events)
+plot(events.2016$Month, events.2016$Events)
+plot(prcp.2015$Month, prcp.2015$PRCP)
+plot(prcp.2016$Month, prcp.2016$PRCP)
