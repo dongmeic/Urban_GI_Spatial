@@ -253,7 +253,7 @@ df <- merge(df, spdf@data, by="site")
 # hwq.df <- merge(dep_hwq_pts@data, spdf@data, by="site")
 
 # value options: "Ent_top", "DO_top", "FC_top", "Tra"
-df.s <- df %>% filter(pre2 > 0 & Key == "Tra" & !is.na(Value))
+df.s <- df %>% filter(pre2 > 0 & Key == "DO_top" & !is.na(Value))
 par(mfrow=c(1, 1))
 hist(df.s$Value)
 summary(df.s$Value)
@@ -292,6 +292,7 @@ hist(log(samp + 1))
 hist(samp^0.6)
 shapiro.test(samp^0.5)
 
+# selected model
 mod <- lm(log(Value+ 1) ~ (Lat + Long + sgi + mta)^2 + as.factor(year) + pre2 + Priority + most, df.s)
 #mod <- glm((Value+1) ~ (Lat + Long + sgi + mta)^2 + as.factor(year) + pre2 + Priority + most, df.s, family="Gamma")
 mod<- step(mod)
@@ -301,6 +302,7 @@ summary(mod)
 par(mfrow=c(2, 2))
 plot(mod)
 anova(mod)
+aov(mod)
 # to check the relationships between predictors and the response variable to suggest data transformation
 add.mod <- gam(Value ~ s(Lat) + s(Long) + s(sgi) + s(mta) + as.factor(year) + s(pre2) + Priority + most, 
                data=df.s)
