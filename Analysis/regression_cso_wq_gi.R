@@ -100,7 +100,7 @@ mode <- function(x, na.rm = FALSE) {
   return(ux[which.max(tabulate(match(x, ux)))])
 }
 
-spdf <- wq_pts[,c("Station", "hu12")]
+spdf <- wq_pts[,c("Station", "Priority", "hu12", "gi")]
 names(spdf)[1] <- "site"
 dep_hwq_pts@data <- merge(dep_hwq_pts@data, spdf@data, by="site")
 # find the right sewershed for the water quality sampling points
@@ -110,11 +110,13 @@ spdf <- gi_pts[,c("GIid", "csoshed")]
 names(spdf)[1] <- "gi"
 dep_hwq_pts@data <- merge(dep_hwq_pts@data, spdf@data, by="gi")
 
-# aggregate SGI density with csoshed
+# aggregate SGI density with hydrological units
+# by HU12
 df_gi <- aggregate(Asset_ID~hu12, data=gi_pts, function(x) length(x))
 colnames(df_gi)[2] <- "SGI_density"
+dep_hwq_pts$hu12 <- over(dep_hwq_pts, wbdhu12)$nid
 # test
-var <- "Tra"; fun <- "mean"; unit <- "csoshed"
+#var <- "Tra"; fun <- "mean"; unit <- "csoshed"
 reg.test <- function(var, fun, unit){
   df <- dep_hwq_pts@data %>% filter(pre2>0) %>% filter(Key==var)
   names(df)[which(names(df)==unit)] <- "unit"
@@ -126,8 +128,14 @@ reg.test <- function(var, fun, unit){
   par(mfrow=c(1,1),xpd=FALSE,mar=c(4,4,2,1))
   plot(df$SGI_density, df$Value)
 }
+
 # value options: "Ent_top", "DO_top", "FC_top", "Tra"
+# using hu12 is not a good idea
 reg.test("Tra", mean, "hu12")
+reg.test("Ent_top", mean, "hu12")
+reg.test("DO_top", mean, "hu12")
+reg.test("FC_top", mean, "hu12")
+reg.test("Tra", median, "hu12")
 
 # # merge SGI density with water quality sampling points
 # dep_hwq_pts@data <- merge(dep_hwq_pts@data, df_gi, by="sewershed")
@@ -140,26 +148,20 @@ reg.test("Tra", mean, "hu12")
 #   plot(df3$SGI_density, df3$Value)
 # }
 
-reg.wq("DO_top", median)
+#reg.wq("DO_top", median)
 
-csoloc <- merge(csoloc, df_gi, by="sewershed")
-reg.cso <- function(var,fun){
-  df <- csoloc@data
-  names(df)[which(names(df)==var)] <- "Value"
-  df1 <- aggregate(Value~sewershed, data=df, fun, na.rm=TRUE)
-  df2 <- aggregate(SGI_density~sewershed, data=df, mean, na.rm=TRUE)
-  df3 <- merge(df1, df2, by="sewershed")
-  print(summary(lm(df3$Value~df3$SGI_density)))
-  plot(df3$SGI_density, df3$Value)
-}
-
-reg.cso("events_13", median)
-
-# by HU12
-df_gi <- aggregate(Asset_ID~hu12, data=gi_pts, function(x) length(x))
-colnames(df_gi)[2] <- "SGI_density"
-dep_hwq_pts$hu12 <- over(dep_hwq_pts, wbdhu12)$nid
-reg.test("Tra", median, "hu12")
+#csoloc <- merge(csoloc, df_gi, by="sewershed")
+# reg.cso <- function(var,fun){
+#   df <- csoloc@data
+#   names(df)[which(names(df)==var)] <- "Value"
+#   df1 <- aggregate(Value~sewershed, data=df, fun, na.rm=TRUE)
+#   df2 <- aggregate(SGI_density~sewershed, data=df, mean, na.rm=TRUE)
+#   df3 <- merge(df1, df2, by="sewershed")
+#   print(summary(lm(df3$Value~df3$SGI_density)))
+#   plot(df3$SGI_density, df3$Value)
+# }
+# 
+# reg.cso("events_13", median)
 
 # aggregate SGI density within certain radius from a water quality sampling point
 # git_pts or mitigated_area
@@ -218,6 +220,8 @@ for (i in 1:n){
 
 spdf <- wq_pts[,c("Station", "Priority", "hu12", "sgi", "most", "mta")]
 names(spdf)[1] <- "site"
+dep_hwq_pts <- readOGR(dsn = "./shapefile", layer = "harbor_water_quality", stringsAsFactors = FALSE)
+dep_hwq_pts <- spTransform(dep_hwq_pts, crs)
 df <- dep_hwq_pts@data
 df <- merge(df, spdf@data, by="site")
 
@@ -249,7 +253,7 @@ df <- merge(df, spdf@data, by="site")
 # hwq.df <- merge(dep_hwq_pts@data, spdf@data, by="site")
 
 # value options: "Ent_top", "DO_top", "FC_top", "Tra"
-df.s <- df %>% filter(pre2 > 0 & Key == "DO_top" & !is.na(Value))
+df.s <- df %>% filter(pre2 > 0 & Key == "Tra" & !is.na(Value))
 par(mfrow=c(1, 1))
 hist(df.s$Value)
 summary(df.s$Value)
@@ -309,7 +313,6 @@ pairs(df.s[,predictors], pch=16, col=rgb(0,0,0, 0.1))
 pairs(df.s[,predictors], pch=16, col=rgb(0,0,0, 0.1), panel=panel.smooth)
 length(predictors)
 preds <- names(df.s[predictors])
-
 
 cc <- df.s[complete.cases(df.s), ]
 par(mfrow=c(2, 3))

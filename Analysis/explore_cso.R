@@ -161,21 +161,21 @@ wwtp <- spTransform(wwtp, crs)
 # priority.outfalls <- priority.cso.watersheds$outfall
 png("figure/CSO_outfalls.png", width=8, height=8, units="in", res=300)
 par(xpd=TRUE,mfrow=c(1,1),mar=c(0.5,0.5,2.5,0.5))
-plot(bound, main="Combined sewer overflow outfalls in NYC")
+plot(bound, main="Stormwater green infrastructure and water quality monitoring in NYC")
 #plot(wbdhu12, add=T)
 plot(cso.shed, bord="grey58", add=T)
-plot(wq_pts, pch=16, cex=1.2, col=rgb(0,0,0.8,0.3), add=T)
+plot(wq_pts, pch=16, cex=1.2, col=rgb(0,0,0.8,0.6), add=T)
 plot(csoloc, pch=16, cex=0.8, col=rgb(0.8,0,0,0.8), add=T)
 plot(wwtp, pch=2, cex=1.5, add=T)
 plot(keyreg, pch=7, cex=1.5, add=T)
-plot(greinfr, pch=20, cex=0.3, col=rgb(0,0.8,0,0.8), add=T)
+plot(greinfr, pch=20, cex=0.5, col=rgb(0,0.8,0,0.8), add=T)
 plot(pilots, pch=1, cex=1.2, col=rgb(0,0.3,0), add=T)
 northarrow(c(925050,195000),3500)
 add.scale()
 legend(920000, 270000, bty="n",
        pch=c(7,2,1,16,16,20), 
-       col=c(rgb(0,0,0),rgb(0,0,0),rgb(0,1,0),rgb(0,0,0.8,0.3),rgb(0.8,0,0,0.8),rgb(0,0.8,0,0.8)), 
-       pt.cex=c(1.5,1.5,1.2,1.2,0.8,0.3),
+       col=c(rgb(0,0,0),rgb(0,0,0),rgb(0,0.3,0),rgb(0,0,0.8,0.6),rgb(0.8,0,0,0.8),rgb(0,0.8,0,0.8)), 
+       pt.cex=c(1.5,1.5,1.2,1.2,0.8,0.5),
        cex = 1.2,
        legend=c("CSO key regulators","WWTP","SGI pilot sites", "WQ sampling sites", "CSO outfalls", "SGI locations"))
 legend(915000, 230000, bty="n",lty = 1, col=c("black", "grey58"),
