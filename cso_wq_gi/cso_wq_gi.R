@@ -42,6 +42,26 @@ knitr::knit(text ='```{r}
             load(url("https://github.com/dongmeic/Urban_GI_Spatial/blob/master/cso_wq_gi/cso_wq_gi.RData?raw=true"))
             ```')
 
+
+GetStatSPDF <- function(spdf, var, index, x, y){
+  df <- spdf@data
+  group <- aggregate(df[,var], by=list(df[,index]), mean, na.rm=TRUE)
+  colnames(group) <- c(index, var)
+  loc_df <- unique(df[,c(index, x, y)])
+  group <- merge(group, loc_df, by=index)
+  lon_col_no <- which(names(group)==x)
+  lat_col_no <- which(names(group)==y)
+  xy <- data.frame(group[,c(lon_col_no,lat_col_no)])
+  coordinates(xy) <- c(x, y)
+  if(var == 'Value'){
+    proj4string(xy) <- CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0")
+  }else{
+    proj4string(xy) <- proj4string(spdf)
+  }
+  spdf <- SpatialPointsDataFrame(coords = xy, data = group, proj4string = proj4string(spdf))
+  return(spdf)
+}
+
 # user interface
 choices.br <- c("Select All", unique(gi$Borough))
 choices.gi <- c("Select All", unique(gi$GItypes))
@@ -63,11 +83,12 @@ in3 <- selectInput(inputId = 'colorshow',
                    label = 'Check GI variables',
                    choices = colorshow.types,
                    selected = "GItypes")
-in4 <- checkboxGroupInput(inputId = "WQkey", 
-                          label = "Water quality indicators (select one)", 
-                          choices = unique(hwq$Key), 
-                          selected = "Tra", 
-                          inline = TRUE)
+
+in4 <- selectInput(inputId = 'WQkey',
+                   label = 'Water quality indicators',
+                   choices = unique(hwq$Key),
+                   selected = "Tra")
+
 in5 <- sliderInput('years',
                    label = 'Year range for harbor water quality',
                    min = 2008,
@@ -79,10 +100,11 @@ in6 <- checkboxGroupInput('keyreg_years',
                           choices = c(2015,2016),
                           selected = 2016, inline = TRUE)
 in7 <- sliderInput('months',
-                   label = 'Month range',
+                   label = 'Month range for key regulators',
                    min = 1,
                    max = 12,
                    value = c(1, 12))
+
 cso_oufall_var <- c("volume_13", "events_13", "volume_14", "events_14", "volume_15", 
                     "events_15", "volume_16", "events_16", "Sewershed", "outfall")
 cso.legtitles <- c("CSO volume in 2013", "CSO events in 2013", "CSO volume in 2014",
@@ -93,6 +115,13 @@ in8 <- selectInput(inputId = 'CSOoutfall',
                    choices = cso_oufall_var,
                    selected = "events_16")
 
+layers.choices <- c('City boundary', 'Contract area', 'CSO-shed', 'Watershed boundary', 'Priority CSO-shed',
+                    'Wastewater treatment plants', 'Weather stations', 'GI pilot programs')
+in9 <- checkboxGroupInput('layers',
+                          label = 'Add extra layers',
+                          choices = layers.choices,
+                          selected = 'City boundary')
+
 gi.legtitles <- c('Borough', 'Green infrastructure types', 'Mitigated area', 'Watershed boundary', 'Sewershed')
 hwq.indicators <- c("Ent_top", "DO_bot", "FC_top", "Tra", "FC_bot", "DO_top", "Ent_bot")
 hwq.legtitles <- c("Enterococcus (top)", "Dissolved oxygen (bottom)", 
@@ -101,8 +130,8 @@ hwq.legtitles <- c("Enterococcus (top)", "Dissolved oxygen (bottom)",
 ui <- bootstrapPage(
   title = "Urban GI Project - Map of green infrastructures from NYC DEP",
   tags$style(type = "text/css", "html, body {width:100%;height:100%}"),
-  absolutePanel(top = 20, right = 30, draggable = TRUE, in1, in2, in3, in4, in5, in6, in7, in8),
-  leafletOutput("map", width = "70%", height = "100%")
+  absolutePanel(top = 20, right = 30, draggable = TRUE, in1, in2, in3, in4, in5, in6, in7, in8, in9),
+  leafletOutput("map", width = "72%", height = "100%")
 )
 ## server
 server <- function(input, output, session) {
@@ -128,30 +157,50 @@ server <- function(input, output, session) {
   
   WaterQuality <- reactive({
     hwq <- hwq[hwq$Key == input$WQkey & hwq$year %in% input$years & hwq$month %in% input$months,]
+    spdf <- GetStatSPDF(hwq, 'Value', 'site', 'Long', 'Lat')
   })
   
   KeyRegulators <- reactive({
     monthly_cso <- monthly_cso[monthly_cso$Year %in% input$keyreg_years & monthly_cso$Month %in% input$months,]
+    spdf <- GetStatSPDF(monthly_cso, 'Events', 'Regulator', 'x', 'y')
   })
   
   output$map <- renderLeaflet({
-    tmap_leaflet(tm_shape(NYCBoundary)+tm_borders("grey20")+tm_shape(ContractArea)+
-                   tm_polygons("Area_ID", palette="Set3", legend.show = FALSE)+
-                   tm_shape(CSOWatershed)+tm_borders("brown")+
-                   tm_shape(WatershedBoundary)+tm_borders("blue")+
-                   tm_shape(PriorityCSOWatershed)+tm_borders(col = "red", lwd = 2)+
-                   tm_shape(WasteWaterTreatmentPlants)+tm_symbols(col = "black", shape = 22, size=0.5)+
-                   tm_shape(ClimateStations)+tm_symbols(col = "cyan", shape = 22, size=0.3)+
-                   tm_shape(WaterQuality())+
-                   tm_dots(title = hwq.legtitles[which(hwq.indicators==input$WQkey)], size = 0.2,col="Value", palette = "Blues")+
-                   tm_shape(KeyRegulators())+
-                   tm_dots(title = "Monthly CSO events", size=0.1, col="Events", palette = "Reds")+
-                   tm_shape(CSOoutfall)+
-                   tm_dots(title = cso.legtitles[which(cso_oufall_var==input$CSOoutfall)], size=0.05, col=input$CSOoutfall, palette = "RdPu")+
-                   tm_shape(GIPilotPrograms)+tm_symbols(border.col="green", col = "lightgreen", size = 0.4)+
-                   tm_shape(GreenInfrastructure())+
-                   tm_dots(title = gi.legtitles[which(colorshow.types==input$colorshow)],size = 0.08, col = input$colorshow))
-    
+    map <- tm_shape(WaterQuality())+
+      tm_dots(title = hwq.legtitles[which(hwq.indicators==input$WQkey)], size = 0.2,col="Value", palette = "Blues")+
+      tm_shape(KeyRegulators())+
+      tm_dots(title = "Monthly CSO events", size=0.1, col="Events", palette = "Reds")+
+      tm_shape(CSOoutfall)+
+      tm_dots(title = cso.legtitles[which(cso_oufall_var==input$CSOoutfall)], size=0.05, col=input$CSOoutfall, palette = "RdPu")+
+      tm_shape(GreenInfrastructure())+
+      tm_dots(title = gi.legtitles[which(colorshow.types==input$colorshow)],size = 0.08, col = input$colorshow)
+   if('City boundary' %in% input$layers){
+     map <- map + tm_shape(NYCBoundary)+tm_borders("grey20")
+   }
+   if('Contract area' %in% input$layers){
+      map <- map + tm_shape(ContractArea)+
+        tm_polygons("Area_ID", palette="Set3", legend.show = FALSE)
+   }
+   if('CSO-shed' %in% input$layers){
+      map <- map + tm_shape(CSOWatershed)+tm_borders("brown")
+   }
+   if('Watershed boundary' %in% input$layers){
+      map <- map + tm_shape(WatershedBoundary)+tm_borders("blue")
+   }
+    if('Priority CSO-shed' %in% input$layers){
+      map <- map + tm_shape(PriorityCSOWatershed)+tm_borders(col = "red", lwd = 2)
+    }
+    if('Wastewater treatment plants' %in% input$layers){
+      map <- map + tm_shape(WasteWaterTreatmentPlants)+
+        tm_symbols(col = "black", shape = 22, size=0.5)
+    }
+    if('Weather stations' %in% input$layers){
+      map <- map +  tm_shape(ClimateStations)+tm_symbols(col = "cyan", shape = 22, size=0.3)
+    }
+    if('GI pilot programs' %in% input$layers){
+      map <- map + tm_shape(GIPilotPrograms)+tm_symbols(border.col="green", col = "lightgreen", size = 0.4)
+    }    
+    tmap_leaflet(map)
   })
   
 }
