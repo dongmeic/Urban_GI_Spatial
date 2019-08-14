@@ -6,6 +6,7 @@ library(ggplot2)
 library(dplyr)
 library(geosphere)
 library(rgeos)
+library(raster)
 
 
 # import functions
@@ -136,17 +137,28 @@ for(var in c('DO_top', 'FC_top', 'Ent_top', 'Tra')){
 # key options: "Ent_top", "DO_top", "FC_top", "Tra"
 vars <- c("Ent_top", "DO_top", "FC_top", "Tra")
 ylabnms <-c('Enterococci', 'Dissolved Oxygen', 'Fecal Coliform', 'Transparency')
+
+png("figure/water_quality_SGI_mitigated_area.png", width=8, height=6, units="in", res=300)
 par(mfrow=c(2, 2), mar=c(4,4,2,1))
 for(var in vars){
   df.s <- wq_data %>% filter(pre2 > 0 & Key == var & !is.na(Value))
   df.val <- group_by(df.s, site)  %>% summarise(group=mean(Value))
-  df.val <- merge(df.val, wq_df[,c('site', 'MitigatedArea')], by='site')
+  # if(var %in% c("Ent_top", "FC_top")){
+  #   df.val$group <- log(df.val$group + 1)
+  # }
+  df.val <- merge(df.val, wq_df[,c('site', 'MitigatedArea', 'PRIORITY', 'hu12')], by='site')
   df.val <- df.val[df.val$MitigatedArea < 25000,]
+  #colnames(df.val)[which(colnames(df.val)=='MAlog')] <- 'MitigatedArea'
   df.val <- df.val[complete.cases(df.val), ]
   plot(df.val$MitigatedArea, df.val$group, xlab='SGI mitigated area', 
        ylab=ylabnms[which(vars==var)], pch=19, cex=1.2)
-  lines(lowess(df.val$group~df.val$MitigatedArea), col=2, cex=1.5)
+  #df.pri <- df.val[df.val$PRIORITY==1,]
+  df.pri <- df.val[df.val$hu12 %in% hu.selected,]
+  points(df.pri$MitigatedArea, df.pri$group, pch=19, cex=1.2, col='red')
+  #lines(lowess(df.val$group~df.val$MitigatedArea), col=2, cex=1.5)
+  lines(lowess(df.pri$group~df.pri$MitigatedArea), col=2, lwd=2, lty=2)
 }
+dev.off()
 
 par(mfrow=c(1, 1), mar=c(4,4,2,1))
 par(mfrow=c(1, 1), mar=c(0,0,0,0))
@@ -171,3 +183,16 @@ for(i in 1:length(wbdhu12@plotOrder)){
 
 plot(wbdhu12[wbdhu12$PRIORITY==1,])
 plot(priority.cso.watersheds, add=T, bord='red')
+hu.df <- wbdhu12@data[,c('nid','PRIORITY')]
+colnames(hu.df)[1] <- 'hu12'
+wq_df <- merge(wq_df, hu.df, by='hu12')
+
+intersect2 <- intersect(wbdhu12, priority.cso.watersheds)
+plot(intersect2)
+intersect2$INTSAREA <- area(intersect2)/1000000
+ints.df <- intersect2@data
+ints.area <- group_by(ints.df, nid)  %>% summarise(group=sum(INTSAREA))
+summary(ints.area$group)
+hu.selected <- ints.area$nid[ints.area$group >= median(ints.area$group)]
+
+wq_df$MAlog <- log(wq_df$MitigatedArea + 1)
