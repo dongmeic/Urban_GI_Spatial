@@ -338,22 +338,26 @@ ggsave(paste0("figure/cso_events_mitigated.png"), width=4, height=3, units="in")
 
 # combine above both plots (using density instead of levels)
 cols <- c('#ffffd4','#fed98e','#fe9929','#cc4c02')
-test <- cor.test(~SGIdens+Volume, cso.vol.df)
-p1 <- ggplot(data=cso.vol.df)+ geom_point(aes(SGIdens, Volume, color=Year))+
-  scale_color_manual(values=cols)+
-  labs(x="SGI density",title=paste0("Correlation: r = ",
+test <- cor.test(~SGIdens+log(Volume+1), cso.vol.df)
+p1 <- ggplot(data=cso.vol.df, aes(x=SGIdens, y=log(Volume+1), color=Year))+ geom_point()+
+  scale_color_manual(values=cols)+ 
+  geom_smooth(method = "lm", formula = y ~ splines::bs(x, 3), se = FALSE)+
+  labs(x="SGI density",y= "Logarithm of volume",title=paste0("Correlation: r = ",
                                     format(as.numeric(test$estimate), digits = 2),", p-value = ",format(as.numeric(test$p.value), digits = 2)))
 test <- cor.test(~SGIdens+Events, cso.vol.df)
-p2 <- ggplot(data=cso.vol.df)+ geom_point(aes(SGIdens, Events, color=Year))+
-  scale_color_manual(values=cols)+
+p2 <- ggplot(data=cso.vol.df, aes(x=SGIdens, y=Events, color=Year))+ geom_point()+
+  scale_color_manual(values=cols)+ 
+  geom_smooth(method = "lm", formula = y ~ splines::bs(x, 3), se = FALSE)+
   labs(x="SGI density",title=paste0("Correlation: r = ",
                                     format(as.numeric(test$estimate), digits = 2),", p-value = ",format(as.numeric(test$p.value), digits = 2)))
-test <- cor.test(~MitigatedArea+Volume, data=cso.mitigated.df)
-p3 <- ggplot(data=cso.mitigated.df)+ geom_point(aes(MitigatedArea, Volume, color=Year))+scale_color_manual(values=cols)+
-  labs(x="SGI mitigated area", title=paste0("Correlation: r = ", format(as.numeric(test$estimate), digits = 2),", p-value = ",format(as.numeric(test$p.value), digits = 2)))
-test <- cor.test(~MitigatedArea+Events, data=cso.mitigated.df)
-p4 <- ggplot(data=cso.mitigated.df)+ geom_point(aes(MitigatedArea, Events, color=Year))+scale_color_manual(values=cols)+
-  labs(x="SGI mitigated area", title=paste0("Correlation: r = ", format(as.numeric(test$estimate), digits = 2),", p-value = ",format(as.numeric(test$p.value), digits = 2)))
+test <- cor.test(~log(MitigatedArea+1)+log(Volume+1), data=cso.mitigated.df)
+p3 <- ggplot(data=cso.mitigated.df, aes(x=log(MitigatedArea+1), y=log(Volume+1), color=Year))+ geom_point()+ 
+  geom_smooth(method = "lm", formula = y ~ splines::bs(x, 3), se = FALSE)+scale_color_manual(values=cols)+
+  labs(x="Logarithm of SGI mitigated area",y= "Logarithm of volume",title=paste0("Correlation: r = ", format(as.numeric(test$estimate), digits = 2),", p-value = ",format(as.numeric(test$p.value), digits = 2)))
+test <- cor.test(~log(MitigatedArea+1)+Events, data=cso.mitigated.df)
+p4 <- ggplot(data=cso.mitigated.df, aes(x=log(MitigatedArea+1), y=Events, color=Year))+ geom_point()+ 
+  geom_smooth(method = "lm", formula = y ~ splines::bs(x, 3), se = FALSE)+scale_color_manual(values=cols)+
+  labs(x="Logarithm of SGI mitigated area", title=paste0("Correlation: r = ", format(as.numeric(test$estimate), digits = 2),", p-value = ",format(as.numeric(test$p.value), digits = 2)))
 
 png(paste0("figure/sgi_cso.png"), width=12, height=8, units="in", res=300)
 par(mar=c(2,2,2,2))

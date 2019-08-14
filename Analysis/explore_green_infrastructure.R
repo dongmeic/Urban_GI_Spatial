@@ -46,11 +46,13 @@ setwd("/nfs/urbangi-data/spatial_data/output")
 infolder <- "/nfs/urbangi-data/spatial_data/"
 bound <- readOGR(dsn = paste0(infolder, "BD"), layer = "nyad_dis")
 nyadwi <- readOGR(dsn = paste0(infolder, "BD"), layer ="nyadwi_dis")
+nycad <- readOGR(dsn= paste0(infolder, "BD"), layer ="nyc_bound", stringsAsFactors = FALSE)
 lonlat <- CRS("+proj=longlat +datum=NAD83")
 crs <- CRS("+proj=lcc +lat_1=40.66666666666666 +lat_2=41.03333333333333
            +lat_0=40.16666666666666 +lon_0=-74 +x_0=300000 +y_0=0 +datum=NAD83
            +units=us-ft +no_defs +ellps=GRS80 +towgs84=0,0,0")
 bound <- spTransform(bound, crs)
+nycad <- spTransform(nycad, crs)
 # green infrastructure points
 gi_pts <- readOGR(dsn = paste0(infolder, "GI"), layer ="GI_2018_02_22", stringsAsFactors = FALSE)
 gi_pts <- spTransform(gi_pts, crs)
@@ -209,7 +211,7 @@ ggsave(paste0("figure/GI_year_borough.png"), width=6, height=5, units="in")
 # map all GI types
 type.names <- c("Bioswales", "Bluebelts", "Detention","Green roofs",
                 "Green streets", "Permeable", "Rain barrels", "Rain gardens")
-cols <- c('#ff7f00', '#1f78b4', '#a6cee3', '#b2df8a', '#33a02c', '#fdbf6f', '#fb9a99', '#e31a1c')
+cols <- c('#ff7f00', '#1f78b4', '#a6cee3', '#b2df8a', '#33a02c', '#fdbf6f', '#cab2d6', '#fb9a99')
 n <- length(type.names)
 for (i in 1:n){
   png(paste0("figure/map_",type.names[i],".png"), width=8, height=8, units="in", res=300)
@@ -240,11 +242,15 @@ plot.gitypes <- function(gitype, color){
   plot(GIsites_all[GIsites_all$GItypes != gitype,], pch=16, cex=1.2, col="grey90", add=T)
   plot(GIsites_all[GIsites_all$GItypes == gitype,], pch=16, cex=1.2, col=color, add=T)
   plot(pilots, pch=1, cex=1.2, col='red', add=T)
-  plot(bound, bord="grey58", add=T)
+  plot(nycad, bord="grey58", add=T)
+  #if (i == 8){
+  pointLabel(coordinates(nycad)[,1], coordinates(nycad)[,2], nycad$boro_name, col=rgb(0.3,0.3,0.3,0.7))
+  #}
 }
 
 png(paste0("figure/map_gitypes.png"), width=10, height=6, units="in", res=300)
 par(mfrow=c(2,4),mar=c(0,0,1,0))
+n = 8
 for (i in 1:n){
   plot.gitypes(type.names[i], cols[i])
   print(i)
