@@ -15,9 +15,13 @@ idw <- function(lon, lat, lonv, latv, varv){
   n <- length(lonv)
   distv <- vector()
   nvarv <- vector()
-  for(i in 1:n){
-    distv[i] <- distsq(lon, lonv[i], lat, latv[i])
-    nvarv[i] <- 1/distv[i] * varv[i]
+  if(n==1){
+    return(varv)
+  }else{
+    for(i in 1:n){
+      distv[i] <- distsq(lon, lonv[i], lat, latv[i])
+      nvarv[i] <- 1/distv[i] * varv[i]
+    }
+    return(sum(nvarv)/sumidw(distv))
   }
-  return(sum(nvarv)/sumidw(distv))
 }
