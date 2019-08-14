@@ -3,6 +3,9 @@
 
 library(rgdal)
 
+# import functions
+source("/research-home/dchen/Urban_GI_Spatial/Analysis/functions.R")
+
 # global settings
 setwd("/nfs/urbangi-data/spatial_data/output")
 infolder <- "/nfs/urbangi-data/spatial_data/"
