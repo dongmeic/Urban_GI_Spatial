@@ -19,7 +19,7 @@ NY_precip <- NY_precip[,c("DATE","PRCP")]
 NY_precip$DATE <- as.Date(NY_precip$DATE)
 head(NY_precip)
 #load WQ data
-NY_wq <- read.csv(file="csv/harbor_water_quality.csv", header=T)
+NY_wq <- read.csv(file="csv/harbor_water_quality.csv", header=T,stringsAsFactors = FALSE)
 NY_wq$date <- as.Date(NY_wq$date)
 head(NY_wq)
 
@@ -27,19 +27,24 @@ head(NY_wq)
 wq_pts <- readOGR(dsn = "./shapefile", layer = "dep_wq_sampling_sites", stringsAsFactors=FALSE)
 wq_pre_df <- wq_pts@data
 NY_precip <- NY_precip[!is.na(NY_precip$PRCP) | !is.na(NY_precip$DATE),]
+
+# this will take more than two hours
 ptm <- proc.time() 
 pre_df <- data.frame(SITE=character(), DATE=as.Date(character()), PRCP=numeric(), stringsAsFactors=FALSE)
 for(date in unique(NY_precip$DATE)){
   clm <- subset(NY_precip, DATE==date)
+  print(date)
   for(site in wq_pre_df$Station){
     wds <- subset(wq_pre_df, Station==site)
     i <- which(wq_pre_df$Station == site)
     pre <- idw(wq_pre_df$Long[i], wq_pre_df$Lat[i], clm$LONGITUDE, clm$LATITUDE, clm$PRCP)
     ndf <- data.frame(SITE=site, DATE=date, PRCP=pre)
     pre_df <- rbind(pre_df, ndf)
+    print(site)
   }
 }
 proc.time() - ptm
+write.csv(pre_df, "csv/precipitation_IDW.csv", row.names=FALSE)
 
 # Find depth of precipitation before sampling event -----------------------
 #calculate precipitation 2 days before sample
@@ -88,16 +93,40 @@ hist(NY_wq$pre2)
 
 head(NY_wq)
 
+# considering precipitation difference among sampling locations
+cumprecip <- function(df, date, n){
+  start <- date - n
+  sum(df$PRCP[which(df$DATE >= start & df$DATE <= date)])
+}
 
+pre_df$DATE <- as.Date(pre_df$DATE)
 
+NY_wq$pre10<- rep(NA, dim(NY_wq)[1])
+NY_wq$pre7 <- rep(NA, dim(NY_wq)[1])
+NY_wq$pre2 <- rep(NA, dim(NY_wq)[1])
 
-
-
-
+# this will take more than two hours
+ptm <- proc.time() 
+SITES <- unique(NY_wq$site[!is.na(NY_wq$site)])
+for(site in SITES){
+  NY_wq.s <- subset(NY_wq, site==site)
+  clm.s <- subset(pre_df, SITE==site)
+  print(site)
+  DATES <- unique(NY_wq.s$date[!is.na(NY_wq.s$date)])
+  for(date in DATES){
+    i <- NY_wq$site == site & NY_wq$date == date
+    NY_wq$pre2[i] <- cumprecip(clm.s, date, 2)
+    NY_wq$pre7[i] <- cumprecip(clm.s, date, 7)
+    NY_wq$pre10[i] <- cumprecip(clm.s, date, 10)
+    print(DATES[DATES==date])
+  }
+}
+proc.time() - ptm
 
 #save results
 
-write.csv(NY_wq, file = "csv/harbor_water_quality_pre.csv", row.names=FALSE)
+#write.csv(NY_wq, file = "csv/harbor_water_quality_pre.csv", row.names=FALSE)
+write.csv(NY_wq, file = "csv/harbor_water_quality_pre_updated.csv", row.names=FALSE)
 
 # write to shapefile
 df2spdf <- function(col1, col2, colname1, colname2, df){
@@ -108,7 +137,7 @@ df2spdf <- function(col1, col2, colname1, colname2, df){
   spdf <- spTransform(spdf, crs)
   return(spdf)
 }
-harbor_wq <- read.csv('csv/harbor_water_quality_pre.csv', stringsAsFactors = FALSE)
+harbor_wq <- read.csv('csv/harbor_water_quality_pre_updated.csv', stringsAsFactors = FALSE)
 harbor_wq <- harbor_wq[!is.na(harbor_wq$year),]
 harbor_wq.td <- gather(harbor_wq, Key, Value, -site, -date, -year, -month, -day, -pre10, -pre7, -pre2)
 harbor_wq.td$year <- as.character(harbor_wq.td$year)
@@ -121,7 +150,7 @@ harborwq.df <- merge(coords, harbor_wq, by="site")
 colnames(harborwq.df)[2:3] <- c("lat", "lon")
 write.csv(harborwq.df, "csv/harbor_WQ_pts.csv", row.names=FALSE)
 harbor_wq.shp <- df2spdf(3,2,"Long","Lat",harbor_wq.df)
-writeOGR(harbor_wq.shp, dsn="./shapefile", layer="harbor_water_quality", 
+writeOGR(harbor_wq.shp, dsn="./shapefile", layer="harbor_water_quality_updated", 
          overwrite_layer = TRUE,driver = "ESRI Shapefile")
 
 

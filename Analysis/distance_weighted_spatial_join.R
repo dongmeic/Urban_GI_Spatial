@@ -212,22 +212,6 @@ summary(sgi.dens$SGIDENSA)
 wq_df <- merge(wq_df, sgi.dens[,-which(colnames(sgi.dens)=='AREASQKM')], by='hu12')
 wq_df$SGIDENSAC <- ifelse(wq_df$SGIDENSA >= median(wq_df$SGIDENSA), 'High', 'Low')
 
-ylabnms <-c('Enterococci (log)', 'Dissolved Oxygen', 'Fecal Coliform (log)', 'Transparency')
-png("figure/water_quality_SGI_density.png", width=8, height=8, units="in", res=300)
-par(mfrow=c(2, 2), mar=c(4,4,2,1))
-for(var in vars){
-  df.s <- wq_data %>% filter(pre2 > 0 & Key == var & !is.na(Value))
-  df.val <- group_by(df.s, site)  %>% summarise(group=mean(Value))
-  if(var %in% c("Ent_top", "FC_top")){
-     df.val$group <- log(df.val$group + 1)
-  }
-  df.val <- merge(df.val, wq_df[,c('site', 'SGIDENSAC')], by='site')
-  boxplot(df.val$group~df.val$SGIDENSAC, xlab='SGI density', 
-       ylab=ylabnms[which(vars==var)])
-  points(factor(df.val$SGIDENSAC), df.val$group, col='blue')
-}
-dev.off()
-
 # calculate SGI density without rain barrels
 sgi.df <- greinfr@data[greinfr@data$GItypes != 'Rain barrels',]
 sgi.qntty <- aggregate(Asset_ID~hu12, data=sgi.df, function(x) length(x))
@@ -258,4 +242,19 @@ for(var in vars){
 }
 dev.off()
 
-
+png("figure/water_quality_SGI_density.png", width=8, height=8, units="in", res=300)
+par(mfrow=c(2, 2), mar=c(4,4,2,1))
+for(var in vars){
+  df.s <- wq_data %>% filter(pre2 > 0 & Key == var & !is.na(Value))
+  df.val <- group_by(df.s, site)  %>% summarise(group=mean(Value))
+  if(var %in% c("Ent_top", "FC_top")){
+     df.val$group <- log(df.val$group + 1)
+  }
+  df.val <- merge(df.val, wq_df[,c('site', 'SGIDENSC', 'SGIDENSAC')], by='site')
+  boxplot(df.val$group~df.val$SGIDENSAC, xlab='SGI density', 
+       ylab=ylabnms[which(vars==var)])
+  points(factor(df.val$SGIDENSC), df.val$group, col='blue')
+  medians <- aggregate(group ~  SGIDENSC, df.val, median)
+  points(1:2, medians$group, col='red', pch=16, cex=2)
+}
+dev.off()
