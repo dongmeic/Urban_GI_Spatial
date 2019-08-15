@@ -105,7 +105,6 @@ NY_wq$pre10<- rep(NA, dim(NY_wq)[1])
 NY_wq$pre7 <- rep(NA, dim(NY_wq)[1])
 NY_wq$pre2 <- rep(NA, dim(NY_wq)[1])
 
-# this will take more than two hours
 ptm <- proc.time() 
 SITES <- unique(NY_wq$site[!is.na(NY_wq$site)])
 for(site in SITES){
@@ -137,6 +136,7 @@ df2spdf <- function(col1, col2, colname1, colname2, df){
   spdf <- spTransform(spdf, crs)
   return(spdf)
 }
+library(tidyr)
 harbor_wq <- read.csv('csv/harbor_water_quality_pre_updated.csv', stringsAsFactors = FALSE)
 harbor_wq <- harbor_wq[!is.na(harbor_wq$year),]
 harbor_wq.td <- gather(harbor_wq, Key, Value, -site, -date, -year, -month, -day, -pre10, -pre7, -pre2)

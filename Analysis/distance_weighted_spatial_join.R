@@ -89,13 +89,13 @@ clim <- read.csv("csv/climatedata_nyc.csv", stringsAsFactors=FALSE)
 head(clim)
 
 # harbor water quality
-dep_hwq <- read.csv("csv/harbor_water_quality.csv",stringsAsFactors=FALSE)
+dep_hwq <- read.csv("csv/harbor_water_quality_pre_updated.csv",stringsAsFactors=FALSE)
 head(dep_hwq)
 wq_pts <- readOGR(dsn = "./shapefile", layer = "dep_wq_sampling_sites", stringsAsFactors=FALSE)
 wq_pts <- spTransform(wq_pts, crs)
 head(wq_pts@data)
 
-hwq_shp <- readOGR(dsn = "./shapefile", layer = "harbor_water_quality", stringsAsFactors=FALSE)
+hwq_shp <- readOGR(dsn = "./shapefile", layer = "harbor_water_quality_updated", stringsAsFactors=FALSE)
 head(hwq_shp@data)
 
 # spatial join between water quality sampling sites and SGI points
