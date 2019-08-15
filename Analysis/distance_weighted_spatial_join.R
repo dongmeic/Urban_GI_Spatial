@@ -84,6 +84,7 @@ head(climstations@data)
 # climate data
 storms <- read.csv("CSV/stormdata_nyc.csv", stringsAsFactors=FALSE)
 head(storms)
+storms <- storms[storms$YEAR >= 2008, ]
 clim <- read.csv("csv/climatedata_nyc.csv", stringsAsFactors=FALSE)
 head(clim)
 

@@ -23,10 +23,29 @@ NY_wq <- read.csv(file="csv/harbor_water_quality.csv", header=T)
 NY_wq$date <- as.Date(NY_wq$date)
 head(NY_wq)
 
+# Use an inverse distance weighting method to adjust precipitation
+wq_pts <- readOGR(dsn = "./shapefile", layer = "dep_wq_sampling_sites", stringsAsFactors=FALSE)
+wq_pre_df <- wq_pts@data
+NY_precip <- NY_precip[!is.na(NY_precip$PRCP) | !is.na(NY_precip$DATE),]
+ptm <- proc.time() 
+pre_df <- data.frame(SITE=character(), DATE=as.Date(character()), PRCP=numeric(), stringsAsFactors=FALSE)
+for(date in unique(NY_precip$DATE)){
+  clm <- subset(NY_precip, DATE==date)
+  for(site in wq_pre_df$Station){
+    wds <- subset(wq_pre_df, Station==site)
+    i <- which(wq_pre_df$Station == site)
+    pre <- idw(wq_pre_df$Long[i], wq_pre_df$Lat[i], clm$LONGITUDE, clm$LATITUDE, clm$PRCP)
+    ndf <- data.frame(SITE=site, DATE=date, PRCP=pre)
+    pre_df <- rbind(pre_df, ndf)
+  }
+}
+proc.time() - ptm
+
 # Find depth of precipitation before sampling event -----------------------
 #calculate precipitation 2 days before sample
 #start.PE is 2 days before sample, end PE is the date of the sample
 
+# without considering precipitation difference within the city
 precipfunc = function(start.PE,end.PE){
   pseries[which(pseries$DATE >= start.PE & pseries$DATE <= end.PE),]
 }
@@ -68,6 +87,13 @@ hist(NY_wq$pre7)
 hist(NY_wq$pre2)
 
 head(NY_wq)
+
+
+
+
+
+
+
 
 #save results
 
