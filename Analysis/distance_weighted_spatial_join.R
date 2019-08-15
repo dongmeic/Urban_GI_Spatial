@@ -39,6 +39,11 @@ cso.shed <- spTransform(cso.shed, crs)
 head(cso.shed@data)
 plot(cso.shed)
 
+cso.shed$OutfallAre[!cso.shed$OutfallAre %in% unique(cso.shed$OutfallAre)]
+df <- data.frame(table(cso.shed@data$OutfallAre))
+df$Var1 <- as.character(df$Var1)
+df$Var1[df$Freq==2]
+
 # priority CSO shed
 priority.cso.watersheds <- readOGR(dsn = paste0(infolder, "watershed"), 
                                    layer = "priority_cso_watersheds", stringsAsFactors=FALSE)
@@ -53,6 +58,7 @@ head(keyreg@data)
 # CSO data
 csoloc <- readOGR(dsn="./shapefile", layer="csoloc", stringsAsFactors=FALSE)
 head(csoloc@data)
+locs_cso <- unqiue(csoloc@data$location)
 plot(csoloc)
 
 # monthly CSO
@@ -84,7 +90,9 @@ head(climstations@data)
 # climate data
 storms <- read.csv("CSV/stormdata_nyc.csv", stringsAsFactors=FALSE)
 head(storms)
-storms <- storms[storms$YEAR >= 2008, ]
+storms <- storms[storms$YEAR >= 2013 & storms$YEAR <= 2016 & 
+                   !is.na(storms$BEGIN_LON) & !is.na(storms$BEGIN_LAT),]
+
 clim <- read.csv("csv/climatedata_nyc.csv", stringsAsFactors=FALSE)
 head(clim)
 
@@ -165,11 +173,19 @@ par(mfrow=c(1, 1), mar=c(4,4,2,1))
 par(mfrow=c(1, 1), mar=c(0,0,0,0))
 
 # check watershed boundaries
-plot(wq_pts, cex=1.5, pch=19, col='blue')
-plot(wbdhu12, add=T, bord='lightblue')
-plot(priority.cso.watersheds, add=T, bord='red')
-plot(greinfr[greinfr$GItypes != 'Rain barrels',], pch=1, cex=0.8, col='darkgreen', add=T)
-text(centroid(wbdhu12)[,1], centroid(wbdhu12)[,2], wbdhu12$NAME, pos = 1, cex=0.8)
+png("figure/watershed.png", width=6, height=5, units="in", res=300)
+par(mfrow=c(1, 1), mar=c(0,0,0,0))
+#plot(wq_pts, cex=1.5, pch=19, col='blue')
+plot(wq_pts, cex=1.5, pch=19, col='white')
+#plot(priority.cso.watersheds, add=T, bord='red')
+plot(cso.shed[!is.na(cso.shed$OutfallAre),], add=T, bord='red')
+plot(csoloc, pch=1, cex=1.2, col=rgb(0.5, 0.5, 0.5, 0.5), add=T)
+plot(greinfr[greinfr$GItypes != 'Rain barrels',], pch=1, cex=0.5, col=rgb(0,0.5,0,0.5), 
+     add=T)
+plot(wbdhu12, add=T, bord='blue')
+# text(centroid(wbdhu12)[,1], centroid(wbdhu12)[,2], wbdhu12$NAME, pos = 1, cex=0.8, 
+#      col=rgb(0.5,0.5,0.5,0.5))
+dev.off()
 
 # try intersection with priority watershed
 intersect1 <- gIntersects(wbdhu12, priority.cso.watersheds, byid = TRUE)
@@ -258,3 +274,82 @@ for(var in vars){
   points(1:2, medians$group, col='red', pch=16, cex=2)
 }
 dev.off()
+
+# storm event range
+#storms$EVENT <- rep(1, dim(storms)[1])
+csoloc$begin_range <- rep(NA, dim(csoloc)[1])
+csoloc$magnitude <- rep(NA, dim(csoloc)[1])
+storms.m <- storms[!is.na(storms$MAGNITUDE),]
+ptm <- proc.time() 
+for(outfall in csoloc$outfall){
+  i <- csoloc$outfall==outfall
+  # csoloc@data$begin_range[i] <- round(idw(csoloc$longtitude[i], csoloc$latitude[i],
+  #                                   storms$BEGIN_LON, storms$BEGIN_LAT, 
+  #                                   storms$BEGIN_RANGE),1)
+  csoloc@data$magnitude[i] <- round(idw(csoloc$longtitude[i], csoloc$latitude[i],
+                                    storms.m$BEGIN_LON, storms.m$BEGIN_LAT, 
+                                    storms.m$MAGNITUDE),1)
+  #print(outfall)
+}
+proc.time() - ptm
+
+#csoloc@data <- csoloc@data[,-dim(csoloc@data)[2]]
+#storms <- storms[,-dim(storms)[2]]
+cso_events <- c('events_13', 'events_14', 'events_15', 'events_16')
+cso_volume <- c('volume_13', 'volume_14', 'volume_15', 'volume_16')
+csoloc$events <- rowSums(csoloc@data[,cso_events], na.rm = T)
+csoloc$volume <- rowSums(csoloc@data[,cso_volume], na.rm = T)
+par(mfrow=c(1, 2), mar=c(4,4,2,1))
+# plot(csoloc$begin_range, csoloc$events)
+# plot(csoloc$begin_range, csoloc$volume)
+plot(csoloc$magnitude, csoloc$events)
+plot(csoloc$magnitude, csoloc$volume)
+
+# get CSO shed
+png("figure/CSO_shed.png", width=8, height=5, units="in", res=300)
+par(mfrow=c(1, 2), mar=c(0,0,2,0))
+plot(cso.shed[is.na(cso.shed$OutfallAre),], main='NA CSO-shed', bord='red')
+plot(csoloc, pch=1, cex=1.2, col=rgb(0.5, 0.5, 0.5, 0.5), add=T)
+plot(greinfr, cex=0.5, pch=16, col=rgb(0,0.5,0,0.1), add=T)
+plot(bound, main='CSO-shed', bord='grey')
+plot(cso.shed[!is.na(cso.shed$OutfallAre),], add=T, bord='red')
+plot(csoloc, pch=1, cex=1.2, col=rgb(0.5, 0.5, 0.5, 0.5), add=T)
+plot(greinfr, cex=0.5, pch=16, col=rgb(0,0.5,0,0.1), add=T)
+dev.off()
+
+png("figure/sewershed.png", width=8, height=5, units="in", res=300)
+par(mfrow=c(1, 2), mar=c(0,0,2,0))
+plot(bound, main='NA sewershed in red', bord='grey')
+plot(sewershed[is.na(sewershed$Sewershed),], add=T, col='red', bord='red')
+plot(csoloc, pch=1, cex=1.2, col=rgb(0.5, 0.5, 0.5, 0.5), add=T)
+plot(greinfr, cex=0.5, pch=16, col=rgb(0,0.5,0,0.1), add=T)
+plot(sewershed[!is.na(sewershed$Sewershed),], main='sewershed', bord='red')
+plot(csoloc, pch=1, cex=1.2, col=rgb(0.5, 0.5, 0.5, 0.5), add=T)
+plot(greinfr, cex=0.5, pch=16, col=rgb(0,0.5,0,0.1), add=T)
+dev.off()
+
+csoloc <- spTransform(csoloc, crs)
+csoloc$CSOshed <- over(csoloc, cso.shed)$OutfallAre
+mitigated_area <- spTransform(mitigated_area, crs)
+mitigated_area$CSOshed <- over(mitigated_area, cso.shed)$OutfallAre
+
+# update CSO outfall with mitigated area
+csoloc_df <- csoloc@data
+ptm <- proc.time()
+csoloc_df$MitigatedArea <- rep(NA, dim(csoloc_df)[1])
+for(outfall in csoloc_df$outfall){
+  csos <- subset(csoloc_df, outfall==outfall)
+  for(CSOshed in csos$CSOshed){
+    ma_pts <- subset(mitigated_area@data, CSOshed==CSOshed)
+    ma_pts <- ma_pts[!is.na(ma_pts$mtgtn_2),]
+    if(nrow(ma_pts)==0){
+      csoloc_df$MitigatedArea[i] <- NA
+    }else{
+      i <- which(csoloc_df$outfall==outfall & csoloc_df$CSOshed==CSOshed)
+      csoloc_df$MitigatedArea[i] <- 
+      idw(csoloc_df$longtitude[i], csoloc_df$latitude[i], ma_pts$LON, ma_pts$LAT, ma_pts$mtgtn_2)
+    }
+  }
+}
+proc.time() - ptm
+
