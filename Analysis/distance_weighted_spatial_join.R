@@ -332,24 +332,3 @@ csoloc <- spTransform(csoloc, crs)
 csoloc$CSOshed <- over(csoloc, cso.shed)$OutfallAre
 mitigated_area <- spTransform(mitigated_area, crs)
 mitigated_area$CSOshed <- over(mitigated_area, cso.shed)$OutfallAre
-
-# update CSO outfall with mitigated area
-csoloc_df <- csoloc@data
-ptm <- proc.time()
-csoloc_df$MitigatedArea <- rep(NA, dim(csoloc_df)[1])
-for(outfall in csoloc_df$outfall){
-  csos <- subset(csoloc_df, outfall==outfall)
-  for(CSOshed in csos$CSOshed){
-    ma_pts <- subset(mitigated_area@data, CSOshed==CSOshed)
-    ma_pts <- ma_pts[!is.na(ma_pts$mtgtn_2),]
-    if(nrow(ma_pts)==0){
-      csoloc_df$MitigatedArea[i] <- NA
-    }else{
-      i <- which(csoloc_df$outfall==outfall & csoloc_df$CSOshed==CSOshed)
-      csoloc_df$MitigatedArea[i] <- 
-      idw(csoloc_df$longtitude[i], csoloc_df$latitude[i], ma_pts$LON, ma_pts$LAT, ma_pts$mtgtn_2)
-    }
-  }
-}
-proc.time() - ptm
-
