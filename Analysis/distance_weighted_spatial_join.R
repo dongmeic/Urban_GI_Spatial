@@ -241,6 +241,8 @@ summary(sgi.dens$SGIDENS)
 wq_df <- wq_df[,1:7]
 wq_df <- merge(wq_df, sgi.dens, by='hu12')
 wq_df$SGIDENSC <- ifelse(wq_df$SGIDENS >= median(wq_df$SGIDENS), 'High', 'Low')
+vorder <- ifelse(wq_df$SGIDENSC=='High', 2, 1)
+wq_df$SGIDENSC <- reorder(wq_df$SGIDENSC, vorder)
 
 ylabnms <-c('Enterococci (log)', 'Dissolved Oxygen', 'Fecal Coliform (log)', 'Transparency')
 png("figure/water_quality_SGI_density_worb.png", width=8, height=8, units="in", res=300)
