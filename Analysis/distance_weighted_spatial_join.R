@@ -227,6 +227,8 @@ summary(sgi.dens$SGIDENSA)
 
 wq_df <- merge(wq_df, sgi.dens[,-which(colnames(sgi.dens)=='AREASQKM')], by='hu12')
 wq_df$SGIDENSAC <- ifelse(wq_df$SGIDENSA >= median(wq_df$SGIDENSA), 'High', 'Low')
+vorder <- ifelse(wq_df$SGIDENSAC=='High', 2, 1)
+wq_df$SGIDENSAC <- reorder(wq_df$SGIDENSAC, vorder)
 
 # calculate SGI density without rain barrels
 sgi.df <- greinfr@data[greinfr@data$GItypes != 'Rain barrels',]
