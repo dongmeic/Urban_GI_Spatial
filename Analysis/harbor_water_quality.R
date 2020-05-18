@@ -3,9 +3,8 @@ inpath <- "/Users/dongmeichen/Documents/All/UrbanGI/waterquality/dep_harbor_wate
 file <- "HarborWaterQuality.csv"
 
 data <- read.csv(paste0(inpath, file), stringsAsFactors = FALSE)
-names(data)
 head(data)
-
+names(data)
 class(data$Sample.Date)
 data$Sample.Date <- as.Date(data$Sample.Date, format = "%m/%d/%Y")
 range(year(data$Sample.Date), na.rm = TRUE)
