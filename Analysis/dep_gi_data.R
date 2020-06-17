@@ -1,3 +1,8 @@
+# By Dongmei Chen
+# This script is designed to reorganize GI DEP map
+# Created on May 2020
+
+# libraries
 library(rgdal)
 inpath <- "/Users/dongmeichen/Documents/All/UrbanGI"
 gis.path <- "/Users/dongmeichen/Documents/All/UrbanGI/GIS_data"
